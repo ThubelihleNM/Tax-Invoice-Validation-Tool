@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tax Invoice Validation Tool | SaaS Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+
+  <div class="app-container" id="mainWorkspaceContainer" style="display: none;">
+
+    <!-- Sidebar Left Navigation -->
+    <aside class="sidebar" id="appSidebar">
+      <div class="sidebar-header">
+        <div class="logo-icon">T</div>
+        <span class="logo-text">TaxAudit SaaS</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a class="nav-item active" data-tab="dashboard">
+          <i data-lucide="layout-dashboard"></i>
+          <span>Dashboard</span>
+        </a>
+        <a class="nav-item" data-tab="upload">
+          <i data-lucide="upload-cloud"></i>
+          <span>Upload Invoice</span>
+        </a>
+        <a class="nav-item" data-tab="history">
+          <i data-lucide="history"></i>
+          <span>Validation History</span>
+        </a>
+        <a class="nav-item" data-tab="reports">
+          <i data-lucide="bar-chart-3"></i>
+          <span>Reports</span>
+        </a>
+        <a class="nav-item" data-tab="users">
+          <i data-lucide="users"></i>
+          <span>Users</span>
+        </a>
+        <a class="nav-item" data-tab="settings">
+          <i data-lucide="settings"></i>
+          <span>Settings</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-profile-summary" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="avatar" id="userAvatar">JD</div>
+            <div class="user-info">
+              <span class="user-name">Jane Doe</span>
+              <span class="user-email">jane.doe@enterprise.com</span>
+            </div>
+          </div>
+          <button id="logoutBtn" style="border: none; background: transparent; cursor: pointer; color: var(--text-muted); display: flex; align-items: center;" title="Logout">
+            <i data-lucide="log-out" style="width: 16px; height: 16px;"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-display">
+
+      <!-- Top Header Bar -->
+      <header class="header-bar">
+        <div class="page-title-area">
+          <button class="menu-toggle" id="sidebarToggle" aria-label="Toggle Sidebar">
+            <i data-lucide="menu"></i>
+          </button>
+          <h1 class="page-title" id="viewTitle">Dashboard</h1>
+        </div>
+
+        <div class="header-actions">
+          <div class="search-box-wrapper">
+            <i data-lucide="search"></i>
+            <input type="text" class="search-input" placeholder="Search invoices..." id="headerSearch">
+          </div>
+
+          <button class="icon-button" id="notifBtn" aria-label="View Notifications">
+            <i data-lucide="bell"></i>
+            <span class="badge-dot"></span>
+          </button>
+
+          <button class="btn btn-primary btn-sm" id="quickUploadBtn">
+            <i data-lucide="plus"></i>
+            <span>New Validation</span>
+          </button>
+
+          <div class="user-profile-header" id="headerProfileTrigger" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 8px; border-radius: var(--radius-md); transition: var(--transition); position: relative;">
+            <div class="avatar avatar-sm" id="headerUserAvatar" style="width: 32px; height: 32px; font-size: 12px; font-weight: 700; border-radius: 50%; background-color: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center;">JD</div>
+            <span class="user-name-text user-name" style="font-size: 13px; font-weight: 500; color: var(--text-main);">Jane Doe</span>
+            <i data-lucide="chevron-down" style="width: 14px; height: 14px; color: var(--text-muted);"></i>
+            
+            <div class="dropdown-menu" id="headerProfileDropdown" style="display: none; position: absolute; top: calc(100% + 8px); right: 0; background-color: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-md); min-width: 180px; z-index: 1000; padding: 6px 0; flex-direction: column;">
+              <a class="dropdown-item" data-profile-tab="profile" style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 13px; color: var(--text-main); text-decoration: none; cursor: pointer;"><i data-lucide="user" style="width: 15px; height: 15px;"></i><span>My Profile</span></a>
+              <a class="dropdown-item" data-profile-tab="settings" style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 13px; color: var(--text-main); text-decoration: none; cursor: pointer;"><i data-lucide="settings" style="width: 15px; height: 15px;"></i><span>Account Settings</span></a>
+              <a class="dropdown-item" data-profile-tab="password" style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 13px; color: var(--text-main); text-decoration: none; cursor: pointer;"><i data-lucide="key" style="width: 15px; height: 15px;"></i><span>Change Password</span></a>
+              <a class="dropdown-item" data-profile-tab="notifications" style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 13px; color: var(--text-main); text-decoration: none; cursor: pointer;"><i data-lucide="bell" style="width: 15px; height: 15px;"></i><span>Notifications</span></a>
+              <a class="dropdown-item" data-profile-tab="help" style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 13px; color: var(--text-main); text-decoration: none; cursor: pointer;"><i data-lucide="help-circle" style="width: 15px; height: 15px;"></i><span>Help</span></a>
+              <hr style="border: none; border-top: 1px solid var(--border-color); margin: 6px 0;">
+              <a class="dropdown-item" id="headerLogoutBtn" style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 13px; color: var(--danger-text); text-decoration: none; cursor: pointer;"><i data-lucide="log-out" style="width: 15px; height: 15px;"></i><span>Logout</span></a>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Scrollable Inner View Panel Wrapper -->
+      <div class="content-wrapper">
+
+        <!-- ================= DASHBOARD PANEL ================= -->
+        <section class="view-panel active" id="view-dashboard">
+
+          <!-- KPI Cards Grid -->
+          <div class="dashboard-grid">
+
+            <div class="kpi-card" id="kpi-total">
+              <div class="kpi-header">
+                <span class="kpi-title">Total Invoices</span>
+                <div class="kpi-icon-wrapper icon-primary">
+                  <i data-lucide="file-text"></i>
+                </div>
+              </div>
+              <span class="kpi-value" id="val-total">1,248</span>
+              <div class="kpi-footer">
+                <span class="kpi-trend trend-up">
+                  <i data-lucide="arrow-up-right"></i> +12%
+                </span>
+                <span class="kpi-context">from last month</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" id="kpi-valid">
+              <div class="kpi-header">
+                <span class="kpi-title">Valid Invoices</span>
+                <div class="kpi-icon-wrapper icon-success">
+                  <i data-lucide="check-circle-2"></i>
+                </div>
+              </div>
+              <span class="kpi-value" id="val-valid">1,180</span>
+              <div class="kpi-footer">
+                <span class="kpi-trend trend-up">
+                  <i data-lucide="arrow-up-right"></i> +94.5%
+                </span>
+                <span class="kpi-context">success rate</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" id="kpi-flagged">
+              <div class="kpi-header">
+                <span class="kpi-title">Flagged Issues</span>
+                <div class="kpi-icon-wrapper icon-warning">
+                  <i data-lucide="alert-triangle"></i>
+                </div>
+              </div>
+              <span class="kpi-value" id="val-flagged">52</span>
+              <div class="kpi-footer">
+                <span class="kpi-trend trend-down">
+                  <i data-lucide="arrow-down-right"></i> -4%
+                </span>
+                <span class="kpi-context">from last week</span>
+              </div>
+            </div>
+
+            <div class="kpi-card" id="kpi-duplicates">
+              <div class="kpi-header">
+                <span class="kpi-title">Duplicates Detected</span>
+                <div class="kpi-icon-wrapper icon-danger">
+                  <i data-lucide="copy"></i>
+                </div>
+              </div>
+              <span class="kpi-value" id="val-duplicates">16</span>
+              <div class="kpi-footer">
+                <span class="kpi-trend trend-down">
+                  <i data-lucide="arrow-down-right"></i> -1.2%
+                </span>
+                <span class="kpi-context">critical duplicates</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Charts and Analytics Panels -->
+          <div class="panel-row">
+
+            <!-- Dynamic Line Chart Panel -->
+            <div class="section-card">
+              <div class="card-title-header">
+                <div>
+                  <h3 class="card-headline">Validation Volume Trend</h3>
+                  <span class="card-subtitle">Validated invoices processed over time</span>
+                </div>
+                <div class="card-actions">
+                  <select class="select-menu" id="chartPeriodSelect">
+                    <option value="7">Last 7 Days</option>
+                    <option value="30" selected>Last 30 Days</option>
+                    <option value="90">Last 3 Months</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="section-body">
+                <div class="chart-container" id="lineChartContainer">
+                  <svg class="chart-svg" viewBox="0 0 600 240" id="dashboardLineChart">
+                    <defs>
+                      <linearGradient id="chart-gradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="var(--primary)" stop-opacity="0.3"></stop>
+                        <stop offset="100%" stop-color="var(--primary)" stop-opacity="0.0"></stop>
+                      </linearGradient>
+                    </defs>
+
+                    <!-- Horizontal Grid lines -->
+                    <line class="chart-grid-line" x1="40" y1="30" x2="570" y2="30"></line>
+                    <line class="chart-grid-line" x1="40" y1="80" x2="570" y2="80"></line>
+                    <line class="chart-grid-line" x1="40" y1="130" x2="570" y2="130"></line>
+                    <line class="chart-grid-line" x1="40" y1="180" x2="570" y2="180"></line>
+
+                    <!-- Axis labels -->
+                    <text class="chart-axis-text" x="15" y="34" text-anchor="middle">150</text>
+                    <text class="chart-axis-text" x="15" y="84" text-anchor="middle">100</text>
+                    <text class="chart-axis-text" x="15" y="134" text-anchor="middle">50</text>
+                    <text class="chart-axis-text" x="15" y="184" text-anchor="middle">0</text>
+
+                    <text class="chart-axis-text" x="60" y="210" text-anchor="middle">Jul 10</text>
+                    <text class="chart-axis-text" x="162" y="210" text-anchor="middle">Jul 13</text>
+                    <text class="chart-axis-text" x="264" y="210" text-anchor="middle">Jul 16</text>
+                    <text class="chart-axis-text" x="366" y="210" text-anchor="middle">Jul 19</text>
+                    <text class="chart-axis-text" x="468" y="210" text-anchor="middle">Jul 22</text>
+                    <text class="chart-axis-text" x="550" y="210" text-anchor="middle">Jul 24</text>
+
+                    <!-- Chart Baseline Axis -->
+                    <line class="chart-axis-line" x1="40" y1="180" x2="570" y2="180"></line>
+
+                    <!-- SVG Chart Path and Area (dynamic helper markers) -->
+                    <path class="chart-area"
+                      d="M 60,180 L 60,120 L 162,90 L 264,130 L 366,60 L 468,110 L 550,45 L 550,180 Z"></path>
+                    <path class="chart-line" d="M 60,120 L 162,90 L 264,130 L 366,60 L 468,110 L 550,45"></path>
+
+                    <!-- Points -->
+                    <circle class="chart-point" cx="60" cy="120" r="4" data-value="60 Invoices (Jul 10)"></circle>
+                    <circle class="chart-point" cx="162" cy="90" r="4" data-value="90 Invoices (Jul 13)"></circle>
+                    <circle class="chart-point" cx="264" cy="130" r="4" data-value="50 Invoices (Jul 16)"></circle>
+                    <circle class="chart-point" cx="366" cy="60" r="4" data-value="120 Invoices (Jul 19)"></circle>
+                    <circle class="chart-point" cx="468" cy="110" r="4" data-value="70 Invoices (Jul 22)"></circle>
+                    <circle class="chart-point" cx="550" cy="45" r="4" data-value="135 Invoices (Jul 24)"></circle>
+                  </svg>
+
+                  <div class="chart-tooltip" id="chartTooltip">120 Invoices</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Side Pie Distribution Panel -->
+            <div class="section-card">
+              <div class="card-title-header">
+                <div>
+                  <h3 class="card-headline">Validation Status</h3>
+                  <span class="card-subtitle">Breakdown of audit records</span>
+                </div>
+              </div>
+              <div class="section-body"
+                style="display: flex; flex-direction: column; justify-content: center; gap: 24px;">
+                <!-- Modern Visual SVG Pie / Donut -->
+                <div style="display: flex; justify-content: center;">
+                  <svg width="140" height="140" viewBox="0 0 42 42">
+                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#f1f5f9" stroke-width="4.5"></circle>
+                    <!-- Valid (94.5%) - green -->
+                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--success)" stroke-width="4.5"
+                      stroke-dasharray="94.5 5.5" stroke-dashoffset="25"></circle>
+                    <!-- Flagged (4.2%) - warning -->
+                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--warning)" stroke-width="4.5"
+                      stroke-dasharray="4.2 95.8" stroke-dashoffset="30.5"></circle>
+                    <!-- Duplicates (1.3%) - danger -->
+                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--danger)" stroke-width="4.5"
+                      stroke-dasharray="1.3 98.7" stroke-dashoffset="26.3"></circle>
+
+                    <g class="donut-text" transform="translate(0, 3)">
+                      <text x="50%" y="50%" font-size="7" font-weight="700" fill="var(--text-main)"
+                        text-anchor="middle">94.5%</text>
+                      <text x="50%" y="62%" font-size="3" font-weight="500" fill="var(--text-muted)"
+                        text-anchor="middle">Valid</text>
+                    </g>
+                  </svg>
+                </div>
+
+                <!-- Custom Pie Legend -->
+                <div class="pie-legend">
+                  <div class="pie-legend-item">
+                    <div class="legend-label-wrapper">
+                      <span class="legend-color" style="background-color: var(--success);"></span>
+                      <span>Valid invoices</span>
+                    </div>
+                    <span class="legend-val">1,180 <span class="legend-percent">94.5%</span></span>
+                  </div>
+                  <div class="pie-legend-item">
+                    <div class="legend-label-wrapper">
+                      <span class="legend-color" style="background-color: var(--warning);"></span>
+                      <span>Flagged warning</span>
+                    </div>
+                    <span class="legend-val">52 <span class="legend-percent">4.2%</span></span>
+                  </div>
+                  <div class="pie-legend-item">
+                    <div class="legend-label-wrapper">
+                      <span class="legend-color" style="background-color: var(--danger);"></span>
+                      <span>Duplicates detected</span>
+                    </div>
+                    <span class="legend-val">16 <span class="legend-percent">1.3%</span></span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Bottom Row: Recent Activity Table -->
+          <div class="panel-row single">
+            <div class="section-card">
+              <div class="card-title-header">
+                <div>
+                  <h3 class="card-headline">Recent Invoices</h3>
+                  <span class="card-subtitle">Latest invoice uploads and audit reports</span>
+                </div>
+                <div class="card-actions">
+                  <button class="btn btn-outline btn-sm" id="dashboardViewAllBtn">
+                    <span>View All Invoices</span>
+                    <i data-lucide="arrow-right"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="table-container">
+                <table class="table-layout" id="dashboardRecentTable">
+                  <thead>
+                    <tr>
+                      <th>Vendor / Supplier</th>
+                      <th>Invoice ID</th>
+                      <th>Upload Date</th>
+                      <th>Subtotal</th>
+                      <th>Tax Amount</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- JS dynamic insert target -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ================= UPLOAD INVOICE PANEL ================= -->
+        <section class="view-panel" id="view-upload">
+          <div class="uploader-wrapper">
+
+            <div class="section-card uploader-card">
+
+              <!-- File Drag/Drop area -->
+              <div class="upload-zone" id="dragDropArea">
+                <input type="file" class="file-input" id="invoiceFileInput" accept=".pdf,.xml,.json,.png,.jpg,.jpeg">
+                <div class="upload-zone-icon">
+                  <i data-lucide="upload-cloud" style="width: 28px; height: 28px;"></i>
+                </div>
+                <h3 class="upload-title">Drag & drop invoice document here</h3>
+                <p class="upload-desc">Supports PDF, XML, JSON, or images (Max 10MB)</p>
+                <button class="btn btn-secondary btn-sm" id="browseFilesBtn">Browse Local Files</button>
+              </div>
+
+              <!-- Uploading / Processing state -->
+              <div class="validation-progress-panel" id="validationProgress">
+                <div class="loader-spinner"></div>
+                <h3 class="validation-headline" id="progressStatusHeadline">Extracting Invoice Details</h3>
+                <p class="validation-sub">Analyzing schema validation and arithmetic integrity rules...</p>
+
+                <div class="validation-checklist-tracker">
+                  <div class="tracker-step-item pending" id="step-ocr">
+                    <span>1. Text & Layout Extraction (OCR)</span>
+                    <i data-lucide="circle"></i>
+                  </div>
+                  <div class="tracker-step-item pending" id="step-arithmetic">
+                    <span>2. Subtotal & VAT Arithmetic Check</span>
+                    <i data-lucide="circle"></i>
+                  </div>
+                  <div class="tracker-step-item pending" id="step-db">
+                    <span>3. Supplier VAT ID Registration Match</span>
+                    <i data-lucide="circle"></i>
+                  </div>
+                  <div class="tracker-step-item pending" id="step-duplicate">
+                    <span>4. Check for Duplicate Records</span>
+                    <i data-lucide="circle"></i>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Finished validation result preview card -->
+              <div class="validation-results-panel" id="validationResultCard">
+                <div style="margin-bottom: 24px; text-align: center;">
+                  <div id="resultStatusIconWrapper"
+                    style="display: inline-flex; width: 48px; height: 48px; border-radius: 50%; align-items: center; justify-content: center; margin-bottom: 16px;">
+                    <i id="resultStatusIcon" data-lucide="check" style="width: 24px; height: 24px;"></i>
+                  </div>
+                  <h3 class="validation-headline" id="resultStatusTitle">Invoice Validation Successful</h3>
+                  <p class="validation-sub" id="resultStatusSubtitle">Invoice matches all structural validation
+                    criteria.</p>
+                </div>
+
+                <div class="results-meta-card">
+                  <div>
+                    <span
+                      style="font-size: 11px; text-transform: uppercase; color: var(--text-light); letter-spacing: 0.05em; font-weight: 600;">Supplier</span>
+                    <h4 id="resultVendor" style="font-size: 15px; font-weight: 600;">Amazon Web Services</h4>
+                  </div>
+                  <div style="text-align: right;">
+                    <span
+                      style="font-size: 11px; text-transform: uppercase; color: var(--text-light); letter-spacing: 0.05em; font-weight: 600;">Total
+                      Amount</span>
+                    <h4 id="resultTotal" style="font-size: 15px; font-weight: 700; color: var(--primary);">$1,452.80
+                    </h4>
+                  </div>
+                </div>
+
+                <div class="rules-headline">Detailed Checks Log</div>
+
+                <div class="rules-result-grid" id="rulesDetailsGrid">
+                  <!-- JS dynamic rule checks items -->
+                </div>
+
+                <div class="results-action-row">
+                  <button class="btn btn-outline" id="btnRejectUpload">Cancel Validation</button>
+                  <button class="btn btn-primary" id="btnAcceptUpload">Save to History</button>
+                </div>
+              </div>
+
+              <!-- Static list of active engine rules -->
+              <div class="rules-panel-box" id="uploadStaticRules">
+                <div class="rules-headline">Standard Validation Engine Rules</div>
+                <div class="rules-checklist">
+                  <div class="rule-check-item">
+                    <i data-lucide="check-circle-2"></i>
+                    <div>
+                      <strong>VAT Identification</strong>
+                      <p>Validates syntax structure of Supplier VAT registration IDs.</p>
+                    </div>
+                  </div>
+                  <div class="rule-check-item">
+                    <i data-lucide="check-circle-2"></i>
+                    <div>
+                      <strong>Mathematical Correctness</strong>
+                      <p>Verifies if Subtotal + Tax Rate matches the Total Amount.</p>
+                    </div>
+                  </div>
+                  <div class="rule-check-item">
+                    <i data-lucide="check-circle-2"></i>
+                    <div>
+                      <strong>Duplicate Index</strong>
+                      <p>Queries database for matching Invoice ID, Supplier & Total.</p>
+                    </div>
+                  </div>
+                  <div class="rule-check-item">
+                    <i data-lucide="check-circle-2"></i>
+                    <div>
+                      <strong>Supplier Registry check</strong>
+                      <p>Ensures that the company is listed in your active client register.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ================= VALIDATION HISTORY PANEL ================= -->
+        <section class="view-panel" id="view-history">
+
+          <div class="history-toolbar">
+
+            <div class="toolbar-left">
+              <div class="search-field">
+                <i data-lucide="search"></i>
+                <input type="text" placeholder="Search supplier or ID..." id="historySearchField">
+              </div>
+
+              <div class="filter-pills">
+                <button class="filter-pill active" data-filter="all">All</button>
+                <button class="filter-pill" data-filter="valid">Valid</button>
+                <button class="filter-pill" data-filter="flagged">Flagged</button>
+                <button class="filter-pill" data-filter="duplicate">Duplicates</button>
+              </div>
+            </div>
+
+            <div class="toolbar-right">
+              <select class="select-menu" id="historySortSelect">
+                <option value="date-desc">Newest First</option>
+                <option value="date-asc">Oldest First</option>
+                <option value="amount-desc">Amount: High to Low</option>
+                <option value="amount-asc">Amount: Low to High</option>
+              </select>
+
+              <button class="btn btn-secondary btn-sm" id="exportHistoryCsvBtn">
+                <i data-lucide="download"></i>
+                <span>Export CSV</span>
+              </button>
+            </div>
+
+          </div>
+
+          <div class="section-card">
+            <div class="table-container">
+              <table class="table-layout" id="historyDataTable">
+                <thead>
+                  <tr>
+                    <th>Vendor / Supplier</th>
+                    <th>Invoice ID</th>
+                    <th>Upload Date</th>
+                    <th>Tax Rate</th>
+                    <th>Tax Amount</th>
+                    <th>Subtotal</th>
+                    <th>Total Amount</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                  <!-- JS dynamic insert target -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ================= REPORTS PANEL ================= -->
+        <section class="view-panel" id="view-reports">
+
+          <!-- Quick metrics row -->
+          <div class="dashboard-grid" style="margin-bottom: 24px;">
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-title">Audit Error Rate</span>
+              </div>
+              <span class="kpi-value" style="color: var(--danger-text)">5.4%</span>
+              <div class="kpi-footer">
+                <span class="kpi-context">average discrepancy index</span>
+              </div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-title">Total Tax Validated</span>
+              </div>
+              <span class="kpi-value" style="color: var(--primary)">$246,810</span>
+              <div class="kpi-footer">
+                <span class="kpi-context">aggregate tax processed</span>
+              </div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-title">Unrecovered Claims</span>
+              </div>
+              <span class="kpi-value" style="color: var(--warning-text)">$12,408</span>
+              <div class="kpi-footer">
+                <span class="kpi-context">due to flagged VAT details</span>
+              </div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-title">Avg processing speed</span>
+              </div>
+              <span class="kpi-value">1.8s</span>
+              <div class="kpi-footer">
+                <span class="kpi-context">per invoice validation check</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-row">
+
+            <div class="section-card">
+              <div class="card-title-header">
+                <div>
+                  <h3 class="card-headline">Validation Failure Reasons</h3>
+                  <span class="card-subtitle">Frequency of invoice validation exceptions</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <!-- Bar Chart layout using custom divs -->
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+
+                  <div>
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+                      <span>Arithmetic Totals Mismatch</span>
+                      <strong class="legend-val">24 Flagged (46%)</strong>
+                    </div>
+                    <div style="height: 8px; background-color: var(--bg-app); border-radius: 4px; overflow: hidden;">
+                      <div style="width: 46%; height: 100%; background-color: var(--danger); border-radius: 4px;"></div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+                      <span>Supplier VAT Registration ID Unverified</span>
+                      <strong class="legend-val">15 Flagged (29%)</strong>
+                    </div>
+                    <div style="height: 8px; background-color: var(--bg-app); border-radius: 4px; overflow: hidden;">
+                      <div style="width: 29%; height: 100%; background-color: var(--warning); border-radius: 4px;">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+                      <span>Duplicate Invoice Number Registered</span>
+                      <strong class="legend-val">8 Flagged (15%)</strong>
+                    </div>
+                    <div style="height: 8px; background-color: var(--bg-app); border-radius: 4px; overflow: hidden;">
+                      <div style="width: 15%; height: 100%; background-color: var(--primary); border-radius: 4px;">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+                      <span>Missing Mandatory Fields (e.g. Invoice Date)</span>
+                      <strong class="legend-val">5 Flagged (10%)</strong>
+                    </div>
+                    <div style="height: 8px; background-color: var(--bg-app); border-radius: 4px; overflow: hidden;">
+                      <div style="width: 10%; height: 100%; background-color: var(--text-light); border-radius: 4px;">
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Auditor activity logs summary -->
+            <div class="section-card">
+              <div class="card-title-header">
+                <div>
+                  <h3 class="card-headline">Validation Stream Log</h3>
+                  <span class="card-subtitle">Real-time status updates</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <div class="activity-stream" id="reportsActivityStream">
+                  <!-- Dynamic JS stream elements -->
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </section>
+
+        <!-- ================= USERS PANEL ================= -->
+        <section class="view-panel" id="view-users">
+
+          <div class="users-table-header">
+            <div>
+              <h2 style="font-size: 16px; font-weight: 600;">Authorized Members</h2>
+              <p style="font-size: 12px; color: var(--text-muted);">Manage your organization's auditors and dashboard
+                operators</p>
+            </div>
+            <button class="btn btn-primary btn-sm" id="addNewUserBtn">
+              <i data-lucide="user-plus"></i>
+              <span>Invite Auditor</span>
+            </button>
+          </div>
+
+          <div class="section-card">
+            <div class="table-container">
+              <table class="table-layout" id="usersTable">
+                <thead>
+                  <tr>
+                    <th>Auditor Profile</th>
+                    <th>Access Role</th>
+                    <th>Current Status</th>
+                    <th>Invoices Processed</th>
+                    <th>Invited Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                  <!-- dynamic user list -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ================= PROFILE & ACCOUNT PANEL ================= -->
+        <section class="view-panel" id="view-profile">
+          <div class="profile-tabs-header" style="display: flex; gap: 16px; border-bottom: 1px solid var(--border-color); margin-bottom: 24px;">
+            <button class="profile-tab-btn active" data-subtab="my-profile" style="padding: 12px 16px; background: transparent; border: none; font-size: 14px; font-weight: 600; color: var(--primary); border-bottom: 2px solid var(--primary); cursor: pointer;">My Profile</button>
+            <button class="profile-tab-btn" data-subtab="account-settings" style="padding: 12px 16px; background: transparent; border: none; font-size: 14px; font-weight: 500; color: var(--text-muted); cursor: pointer;">Account Settings</button>
+            <button class="profile-tab-btn" data-subtab="change-password" style="padding: 12px 16px; background: transparent; border: none; font-size: 14px; font-weight: 500; color: var(--text-muted); cursor: pointer;">Change Password</button>
+          </div>
+
+          <!-- SUBTAB: MY PROFILE -->
+          <div class="profile-subtab-content" id="subtab-my-profile">
+            <div style="display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start;">
+              
+              <!-- Left Col: Photo & Summary Card -->
+              <div class="section-card" style="text-align: center; padding: 24px;">
+                <div style="position: relative; width: 120px; height: 120px; margin: 0 auto 16px auto;">
+                  <img id="profilePreviewImage" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200" alt="Avatar" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary-light);">
+                  <div id="profileTextAvatar" style="display: none; width: 120px; height: 120px; border-radius: 50%; background-color: var(--primary-light); color: var(--primary); font-size: 40px; font-weight: 700; align-items: center; justify-content: center; margin: 0 auto;">JD</div>
+                </div>
+                <input type="file" id="profilePhotoInput" accept="image/png, image/jpeg, image/jpg" style="display: none;">
+                <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 16px;">
+                  <button class="btn btn-outline btn-sm" id="btnUploadPhoto" style="padding: 4px 8px; font-size: 11px;">Upload</button>
+                  <button class="btn btn-danger btn-sm" id="btnRemovePhoto" style="padding: 4px 8px; font-size: 11px; background-color: #ef4444; color: #ffffff; border: none; border-radius: var(--radius-sm); cursor: pointer;">Remove</button>
+                </div>
+                <h3 class="user-name" style="margin: 0 0 4px 0; font-size: 16px; font-weight: 700; color: var(--text-main);">Jane Doe</h3>
+                <span class="user-role-badge badge badge-info" style="margin-bottom: 16px;">Auditor</span>
+                
+                <hr style="border: none; border-top: 1px solid var(--border-color); margin: 16px 0;">
+                
+                <!-- Profile Security Card -->
+                <div style="text-align: left; font-size: 11px; color: var(--text-muted); display: flex; flex-direction: column; gap: 8px;">
+                  <h4 style="margin: 0 0 4px 0; font-size: 12px; font-weight: 600; color: var(--text-main);">Security Metadata</h4>
+                  <div><strong>Last Login:</strong> <span id="metaLastLogin">July 31, 2026</span></div>
+                  <div><strong>Last Password Change:</strong> <span id="metaLastPwChange">Never</span></div>
+                  <div><strong>OS:</strong> <span id="metaOs">Windows 11</span></div>
+                  <div><strong>Browser:</strong> <span id="metaBrowser">Chrome 120</span></div>
+                </div>
+              </div>
+
+              <!-- Right Col: Profile Fields Form -->
+              <div class="section-card" style="padding: 32px;">
+                <h3 class="card-headline">Profile Information</h3>
+                <form id="myProfileForm" onsubmit="event.preventDefault(); saveUserProfile();" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px;">
+                  <div class="form-group-validation">
+                    <label class="form-label" style="font-size: 12px; font-weight: 600;">First Name</label>
+                    <input type="text" id="profFirstName" class="form-control" placeholder="Jane" style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+                  </div>
+                  <div class="form-group-validation">
+                    <label class="form-label" style="font-size: 12px; font-weight: 600;">Last Name</label>
+                    <input type="text" id="profLastName" class="form-control" placeholder="Doe" style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+                  </div>
+                  <div class="form-group-validation">
+                    <label class="form-label" style="font-size: 12px; font-weight: 600;">Company Name</label>
+                    <input type="text" id="profCompany" class="form-control" placeholder="TaxAudit Corp" style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+                  </div>
+                  <div class="form-group-validation">
+                    <label class="form-label" style="font-size: 12px; font-weight: 600;">Job Title</label>
+                    <input type="text" id="profJobTitle" class="form-control" placeholder="Senior Accountant" style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+                  </div>
+                  <div class="form-group-validation">
+                    <label class="form-label" style="font-size: 12px; font-weight: 600;">Phone Number</label>
+                    <input type="text" id="profPhone" class="form-control" placeholder="+1 (555) 019-2834" style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+                  </div>
+                  <div class="form-group-validation">
+                    <label class="form-label" style="font-size: 12px; font-weight: 600;">Tax ID</label>
+                    <input type="text" id="profTaxId" class="form-control" placeholder="US123456789" style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+                  </div>
+                  <div class="form-group-validation">
+                    <label class="form-label" style="font-size: 12px; font-weight: 600;">Country</label>
+                    <input type="text" id="profCountry" class="form-control" placeholder="United States" style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+                  </div>
+                  <div class="form-group-validation">
+                    <label class="form-label" style="font-size: 12px; font-weight: 600;">City</label>
+                    <input type="text" id="profCity" class="form-control" placeholder="San Francisco" style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+                  </div>
+                  <div class="form-group-validation" style="grid-column: span 2;">
+                    <label class="form-label" style="font-size: 12px; font-weight: 600;">Address</label>
+                    <input type="text" id="profAddress" class="form-control" placeholder="100 Pine Street, Suite 1200" style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+                  </div>
+                  <div class="form-group-validation">
+                    <label class="form-label" style="font-size: 12px; font-weight: 600;">Postal Code</label>
+                    <input type="text" id="profPostal" class="form-control" placeholder="94111" style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+                  </div>
+                  <div class="form-group-validation" style="grid-column: span 2;">
+                    <label class="form-label" style="font-size: 12px; font-weight: 600;">Bio / About Me</label>
+                    <textarea id="profBio" class="form-control" placeholder="Describe your role or company profile..." style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px; height: 80px; resize: none; font-family: inherit;"></textarea>
+                  </div>
+                  <div style="grid-column: span 2; display: flex; justify-content: flex-end; margin-top: 10px;">
+                    <button type="submit" class="btn btn-primary" style="padding: 10px 24px;">Save Changes</button>
+                  </div>
+                </form>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- SUBTAB: ACCOUNT SETTINGS -->
+          <div class="profile-subtab-content" id="subtab-account-settings" style="display: none;">
+            <div class="section-card" style="padding: 32px; max-width: 650px;">
+              <h3 class="card-headline">Account Preferences</h3>
+              <form id="accountPreferencesForm" onsubmit="event.preventDefault(); saveUserPreferences();" style="display: flex; flex-direction: column; gap: 20px; margin-top: 20px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                  <div class="form-group-validation">
+                    <label class="form-label" style="font-size: 12px; font-weight: 600;">Language Preference</label>
+                    <select id="prefLanguage" class="select-menu" style="padding: 10px; font-size: 13px;">
+                      <option value="en">English (US)</option>
+                      <option value="es">Español (ES)</option>
+                      <option value="fr">Français (FR)</option>
+                    </select>
+                  </div>
+                  <div class="form-group-validation">
+                    <label class="form-label" style="font-size: 12px; font-weight: 600;">Theme preference</label>
+                    <select id="prefTheme" class="select-menu" style="padding: 10px; font-size: 13px;">
+                      <option value="light">Light Mode</option>
+                      <option value="dark">Dark Mode</option>
+                    </select>
+                  </div>
+                  <div class="form-group-validation" style="grid-column: span 2;">
+                    <label class="form-label" style="font-size: 12px; font-weight: 600;">Timezone</label>
+                    <select id="prefTimezone" class="select-menu" style="padding: 10px; font-size: 13px;">
+                      <option value="UTC">UTC (Coordinated Universal Time)</option>
+                      <option value="EST">EST (Eastern Standard Time)</option>
+                      <option value="GMT">GMT (Greenwich Mean Time)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid var(--border-color); margin: 10px 0;">
+
+                <div>
+                  <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: var(--text-main);">Notifications Preferences</h4>
+                  <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                      <div>
+                        <span style="font-size: 13px; font-weight: 500; color: var(--text-main);">Email Notifications</span>
+                        <p style="font-size: 11px; color: var(--text-muted); margin: 2px 0 0 0;">Receive daily audit summaries and compliance reports.</p>
+                      </div>
+                      <input type="checkbox" id="prefNotifEmail" style="width: 16px; height: 16px; cursor: pointer;">
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                      <div>
+                        <span style="font-size: 13px; font-weight: 500; color: var(--text-main);">System Notifications</span>
+                        <p style="font-size: 11px; color: var(--text-muted); margin: 2px 0 0 0;">Show notifications indicators within dashboard header.</p>
+                      </div>
+                      <input type="checkbox" id="prefNotifSystem" style="width: 16px; height: 16px; cursor: pointer;">
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                      <div>
+                        <span style="font-size: 13px; font-weight: 500; color: var(--text-main);">Fraud Alerts</span>
+                        <p style="font-size: 11px; color: var(--text-muted); margin: 2px 0 0 0;">Trigger instant warning messages on duplicate/suspicious invoice detection.</p>
+                      </div>
+                      <input type="checkbox" id="prefNotifFraud" style="width: 16px; height: 16px; cursor: pointer;">
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                      <div>
+                        <span style="font-size: 13px; font-weight: 500; color: var(--text-main);">Validation Exceptions</span>
+                        <p style="font-size: 11px; color: var(--text-muted); margin: 2px 0 0 0;">Log errors on subtotal verification failure.</p>
+                      </div>
+                      <input type="checkbox" id="prefNotifValidation" style="width: 16px; height: 16px; cursor: pointer;">
+                    </div>
+                  </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                  <button type="submit" class="btn btn-primary" style="padding: 10px 24px;">Save Settings</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- SUBTAB: CHANGE PASSWORD -->
+          <div class="profile-subtab-content" id="subtab-change-password" style="display: none;">
+            <div class="section-card" style="padding: 32px; max-width: 500px;">
+              <h3 class="card-headline">Update Security Credentials</h3>
+              <form id="changePasswordForm" onsubmit="event.preventDefault(); changeUserPassword();" style="display: flex; flex-direction: column; gap: 16px; margin-top: 20px;">
+                <div class="form-group-validation">
+                  <label class="form-label" style="font-size: 12px; font-weight: 600;">Current Password</label>
+                  <input type="password" id="pwCurrent" class="form-control" placeholder="••••••••" required style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+                </div>
+                <div class="form-group-validation">
+                  <label class="form-label" style="font-size: 12px; font-weight: 600;">New Password</label>
+                  <input type="password" id="pwNew" class="form-control" placeholder="••••••••" required style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+                  <div style="display: flex; gap: 4px; margin-top: 6px; height: 4px;">
+                    <div id="strength-bar-1" style="flex: 1; background-color: #e2e8f0; border-radius: 2px;"></div>
+                    <div id="strength-bar-2" style="flex: 1; background-color: #e2e8f0; border-radius: 2px;"></div>
+                    <div id="strength-bar-3" style="flex: 1; background-color: #e2e8f0; border-radius: 2px;"></div>
+                  </div>
+                  <span id="strengthText" style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: inline-block;">Strength: Enter password</span>
+                </div>
+                <div class="form-group-validation">
+                  <label class="form-label" style="font-size: 12px; font-weight: 600;">Confirm New Password</label>
+                  <input type="password" id="pwConfirm" class="form-control" placeholder="••••••••" required style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+                </div>
+                <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                  <button type="submit" class="btn btn-primary" style="padding: 10px 24px;">Change Password</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ================= SETTINGS PANEL ================= -->
+        <section class="view-panel" id="view-settings">
+
+          <div class="section-card" style="padding: 32px;">
+
+            <form id="settingsForm" onsubmit="event.preventDefault();">
+
+              <!-- Segment 1: Engine Rules settings -->
+              <div class="settings-section-divider">
+                <div class="settings-grid">
+                  <div class="settings-meta">
+                    <span class="settings-label">Validation Engine Rules</span>
+                    <p class="settings-desc">Fine-tune discrepancy thresholds and active checks performed on invoice
+                      documents.</p>
+                  </div>
+                  <div class="settings-inputs">
+                    <label class="form-checkbox-row">
+                      <input type="checkbox" class="form-checkbox" checked id="set-arithmetic-check">
+                      <div>
+                        <strong>Strict Arithmetic Audit</strong>
+                        <p style="font-size: 11px; color: var(--text-muted);">Flag invoice totals matching subtotal
+                          within a tolerance lower than $0.05.</p>
+                      </div>
+                    </label>
+
+                    <label class="form-checkbox-row">
+                      <input type="checkbox" class="form-checkbox" checked id="set-vat-check">
+                      <div>
+                        <strong>VIES Registry Lookup Match</strong>
+                        <p style="font-size: 11px; color: var(--text-muted);">Connect online registry to evaluate
+                          Supplier VAT compliance.</p>
+                      </div>
+                    </label>
+
+                    <label class="form-checkbox-row">
+                      <input type="checkbox" class="form-checkbox" checked id="set-duplicate-check">
+                      <div>
+                        <strong>Auto-Detect Duplicates</strong>
+                        <p style="font-size: 11px; color: var(--text-muted);">Scan preceding 90 days log to
+                          cross-reference matching identifiers.</p>
+                      </div>
+                    </label>
+
+                    <div class="form-group" style="margin-top: 10px;">
+                      <label class="form-label" for="vatTolerance">Calculation Tolerance Rate</label>
+                      <input type="text" class="form-input" id="vatTolerance" value="0.01 USD">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Segment 2: Profile settings -->
+              <div class="settings-section-divider" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+                <div class="settings-grid">
+                  <div class="settings-meta">
+                    <span class="settings-label">Workspace Settings</span>
+                    <p class="settings-desc">Manage auditor credentials and administrative configurations.</p>
+                  </div>
+                  <div class="settings-inputs">
+                    <div class="form-group">
+                      <label class="form-label" for="profileName">Auditor Full Name</label>
+                      <input type="text" class="form-input" id="profileName" value="Jane Doe">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" for="profileEmail">Auditor Account Email</label>
+                      <input type="email" class="form-input" id="profileEmail" value="jane.doe@enterprise.com">
+                    </div>
+
+                    <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+                      <button class="btn btn-secondary" type="button" id="btnResetSettings">Discard Changes</button>
+                      <button class="btn btn-primary" type="button" id="btnSaveSettings">Save Preferences</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </form>
+
+          </div>
+
+        </section>
+
+      </div>
+    </main>
+
+    <!-- ================= RIGHT SLIDEOUT DRAWER (INVOICE ANALYSIS) ================= -->
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <div class="detail-drawer" id="invoiceDetailsDrawer">
+
+      <div class="drawer-header">
+        <h3 class="drawer-header-title" id="drawerInvoiceId">Invoice Detail Review</h3>
+        <button class="drawer-close" id="closeDrawerBtn" aria-label="Close details">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="drawer-body">
+
+        <!-- Status indicator header -->
+        <div class="drawer-section">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span id="drawerStatusBadge" class="badge">
+              <span class="badge-dot-indicator"></span>
+              <span>Valid</span>
+            </span>
+            <span style="font-size: 12px; color: var(--text-light);" id="drawerDate">July 24, 2026</span>
+          </div>
+        </div>
+
+        <!-- Vendor and total details -->
+        <div class="drawer-section">
+          <span class="drawer-section-title">Supplier & Financial Summary</span>
+          <div class="drawer-meta-grid">
+            <div class="drawer-meta-item">
+              <span class="drawer-meta-label">Vendor Name</span>
+              <span class="drawer-meta-value" id="drawerVendor">GitHub, Inc.</span>
+            </div>
+            <div class="drawer-meta-item">
+              <span class="drawer-meta-label">Supplier VAT ID</span>
+              <span class="drawer-meta-value" id="drawerVatId">US827361942</span>
+            </div>
+            <div class="drawer-meta-item">
+              <span class="drawer-meta-label">Subtotal</span>
+              <span class="drawer-meta-value" id="drawerSubtotal">$500.00</span>
+            </div>
+            <div class="drawer-meta-item">
+              <span class="drawer-meta-label">Tax Rate / Amount</span>
+              <span class="drawer-meta-value" id="drawerTax">$100.00 (20%)</span>
+            </div>
+          </div>
+          <div
+            style="margin-top: 10px; padding: 12px; background-color: var(--primary-light); border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 13px; font-weight: 500; color: var(--primary);">Validated Total</span>
+            <strong style="font-size: 16px; font-weight: 700; color: var(--primary);" id="drawerTotal">$600.00</strong>
+          </div>
+        </div>
+
+        <!-- Engine Rules validation outputs -->
+        <div class="drawer-section">
+          <span class="drawer-section-title">Audit Engine Outcomes</span>
+          <div class="drawer-rules-list" id="drawerRulesList">
+            <!-- Dynamic elements loaded via script -->
+          </div>
+        </div>
+
+        <!-- Raw extracted values layout -->
+        <div class="drawer-section">
+          <span class="drawer-section-title">Extracted Document Payload</span>
+          <div class="invoice-render-box" id="drawerInvoiceText">
+            <!-- Simulated plain text structure -->
+          </div>
+        </div>
+
+        <!-- Action items -->
+        <div style="display: flex; gap: 12px; margin-top: auto;">
+          <button class="btn btn-secondary" style="flex: 1;" id="drawerPrintBtn">
+            <i data-lucide="printer"></i>
+            <span>Print Invoice</span>
+          </button>
+          <button class="btn btn-danger" style="flex: 1;" id="drawerDeleteBtn">
+            <i data-lucide="trash-2"></i>
+            <span>Delete Log</span>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Interactive Toast Toaster target -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Floating AI Assistant (Module 8 & Integration) -->
+    <button class="ai-fab" id="aiFab" title="Open AI Assistant">
+      <i data-lucide="sparkles"></i>
+    </button>
+    <div class="ai-drawer" id="aiDrawer">
+      <div class="ai-drawer-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="sparkles" style="color: #2563eb; width: 16px; height: 16px;"></i>
+          <div>
+            <h4 style="margin: 0; font-size: 13px; font-weight: 600; color: #1e293b;">AI Financial Assistant</h4>
+            <span style="font-size: 9px; color: #10b981; font-weight: 700; text-transform: uppercase;">Copilot Active</span>
+          </div>
+        </div>
+        <button class="icon-button" id="closeAiDrawer" style="border: none; background: transparent; cursor: pointer; color: #64748b;"><i data-lucide="x" style="width: 16px; height: 16px;"></i></button>
+      </div>
+      <div class="ai-drawer-body" id="aiChatBody">
+        <div class="ai-msg ai">
+          Hello! I'm your Smart Invoice Validation Assistant. I can help explain invoice validation results, identify duplicate invoices, verify calculations, and answer questions.
+        </div>
+      </div>
+      <div class="ai-drawer-footer">
+        <input type="text" id="aiInput" placeholder="Ask AI Copilot...">
+        <button class="btn btn-primary" id="btnSendAi" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center;"><i data-lucide="send" style="width: 14px; height: 14px;"></i></button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="auth-wrapper" id="authContainer">
+    
+    <!-- LOGIN CARD -->
+    <div class="auth-card" id="loginCard">
+      <div class="auth-header">
+        <div class="logo-icon">T</div>
+        <h2 class="auth-title">Welcome to TaxAudit SaaS</h2>
+        <p class="auth-subtitle">Enterprise Tax Invoice Validation Tool</p>
+      </div>
+      <form id="loginForm" onsubmit="event.preventDefault(); handleLoginSubmit();">
+        <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px;">
+          <label class="form-label" for="loginEmail" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Email Address</label>
+          <input type="email" id="loginEmail" class="form-control" placeholder="name@enterprise.com" required style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+        </div>
+        <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="form-label" for="loginPassword" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Password</label>
+            <a class="auth-link" onclick="showAuthCard('forgotCard')" style="font-size: 12px; color: var(--primary); cursor: pointer; font-weight: 500;">Forgot Password?</a>
+          </div>
+          <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px;">
+          <input type="checkbox" id="loginRememberMe" style="width: 14px; height: 14px; cursor: pointer;">
+          <label for="loginRememberMe" style="font-size: 13px; color: var(--text-muted); cursor: pointer; user-select: none;">Remember Me</label>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 600; font-size: 13px;">Sign In</button>
+      </form>
+      <div class="auth-footer" style="margin-top: 20px; text-align: center; font-size: 13px; color: var(--text-muted);">
+        Don't have an account? <a class="auth-link" onclick="showAuthCard('signupCard')" style="color: var(--primary); cursor: pointer; font-weight: 600;">Create free account</a>
+      </div>
+    </div>
+
+    <!-- SIGN UP CARD -->
+    <div class="auth-card" id="signupCard" style="display: none;">
+      <div class="auth-header">
+        <div class="logo-icon">T</div>
+        <h2 class="auth-title">Create your Account</h2>
+        <p class="auth-subtitle">Register to validate tax invoices</p>
+      </div>
+      <form id="signupForm" onsubmit="event.preventDefault(); handleSignupSubmit();">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div class="form-group" style="display: flex; flex-direction: column; gap: 4px;">
+            <label class="form-label" for="signupFirstName" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">First Name</label>
+            <input type="text" id="signupFirstName" class="form-control" placeholder="Jane" required style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+          </div>
+          <div class="form-group" style="display: flex; flex-direction: column; gap: 4px;">
+            <label class="form-label" for="signupLastName" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Last Name</label>
+            <input type="text" id="signupLastName" class="form-control" placeholder="Doe" required style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+          </div>
+        </div>
+        <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;">
+          <label class="form-label" for="signupCompanyName" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Company Name</label>
+          <input type="text" id="signupCompanyName" class="form-control" placeholder="Enterprise Solutions Ltd" required style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+        </div>
+        <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;">
+          <label class="form-label" for="signupEmail" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Email Address</label>
+          <input type="email" id="signupEmail" class="form-control" placeholder="name@enterprise.com" required style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+        </div>
+        <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;">
+          <label class="form-label" for="signupPhone" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Phone Number</label>
+          <input type="tel" id="signupPhone" class="form-control" placeholder="+1 (555) 019-2834" style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div class="form-group" style="display: flex; flex-direction: column; gap: 4px;">
+            <label class="form-label" for="signupPassword" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Password</label>
+            <input type="password" id="signupPassword" class="form-control" placeholder="••••••••" required style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+          </div>
+          <div class="form-group" style="display: flex; flex-direction: column; gap: 4px;">
+            <label class="form-label" for="signupConfirmPassword" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Confirm Password</label>
+            <input type="password" id="signupConfirmPassword" class="form-control" placeholder="••••••••" required style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+          </div>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 20px;">
+          <input type="checkbox" id="signupTerms" style="width: 14px; height: 14px; cursor: pointer; margin-top: 2px;" required>
+          <label for="signupTerms" style="font-size: 12px; color: var(--text-muted); cursor: pointer; line-height: 1.4;">
+            I agree to the Terms of Service and Privacy Policy
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 600; font-size: 13px;">Register Account</button>
+      </form>
+      <div class="auth-footer" style="margin-top: 20px; text-align: center; font-size: 13px; color: var(--text-muted);">
+        Already have an account? <a class="auth-link" onclick="showAuthCard('loginCard')" style="color: var(--primary); cursor: pointer; font-weight: 600;">Sign In</a>
+      </div>
+    </div>
+
+    <!-- FORGOT PASSWORD CARD -->
+    <div class="auth-card" id="forgotCard" style="display: none;">
+      <div class="auth-header">
+        <div class="logo-icon">T</div>
+        <h2 class="auth-title">Password Recovery</h2>
+        <p class="auth-subtitle">We will generate a recovery reset token</p>
+      </div>
+      <form id="forgotForm" onsubmit="event.preventDefault(); handleForgotSubmit();">
+        <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px;">
+          <label class="form-label" for="forgotEmail" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Email Address</label>
+          <input type="email" id="forgotEmail" class="form-control" placeholder="name@enterprise.com" required style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 600; font-size: 13px; margin-bottom: 12px;">Request Reset Token</button>
+        <button type="button" class="btn btn-outline" style="width: 100%; padding: 12px; font-size: 13px;" onclick="showAuthCard('loginCard')">Back to Login</button>
+      </form>
+    </div>
+
+    <!-- RESET PASSWORD CARD -->
+    <div class="auth-card" id="resetCard" style="display: none;">
+      <div class="auth-header">
+        <div class="logo-icon">T</div>
+        <h2 class="auth-title">Create New Password</h2>
+        <p class="auth-subtitle">Enter your secret token and set a new password</p>
+      </div>
+      <form id="resetForm" onsubmit="event.preventDefault(); handleResetSubmit();">
+        <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;">
+          <label class="form-label" for="resetToken" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Reset Token</label>
+          <input type="text" id="resetToken" class="form-control" placeholder="Enter token from recovery response" required style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+        </div>
+        <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;">
+          <label class="form-label" for="resetNewPassword" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">New Password</label>
+          <input type="password" id="resetNewPassword" class="form-control" placeholder="••••••••" required style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+        </div>
+        <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px;">
+          <label class="form-label" for="resetConfirmPassword" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Confirm Password</label>
+          <input type="password" id="resetConfirmPassword" class="form-control" placeholder="••••••••" required style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 600; font-size: 13px; margin-bottom: 12px;">Save New Password</button>
+        <button type="button" class="btn btn-outline" style="width: 100%; padding: 12px; font-size: 13px;" onclick="showAuthCard('loginCard')">Cancel</button>
+      </form>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
