@@ -44,6 +44,12 @@ class ProfileUpdateRequest(BaseModel):
     fraud_alerts: Optional[bool] = None
     validation_alerts: Optional[bool] = None
     report_notifications: Optional[bool] = None
+    
+    # SaaS onboarding fields
+    business_registration_number: Optional[str] = None
+    tax_number: Optional[str] = None
+    occupation: Optional[str] = None
+
 
 @router.get("", response_model=UserListResponse)
 def get_users(
@@ -153,7 +159,10 @@ def update_profile(
         system_notifications=data.system_notifications,
         fraud_alerts=data.fraud_alerts,
         validation_alerts=data.validation_alerts,
-        report_notifications=data.report_notifications
+        report_notifications=data.report_notifications,
+        business_registration_number=data.business_registration_number,
+        tax_number=data.tax_number,
+        occupation=data.occupation
     )
     return user_service.update_user(db, current_user.id, current_user.id, user_in)
 

@@ -8,13 +8,17 @@ import { DashboardLayout } from './layouts/DashboardLayout';
 import { AuthLayout } from './layouts/AuthLayout';
 import { AIAssistantDrawer } from './components/ai/AIAssistantDrawer';
 import {
-  Login, ForgotPassword, ResetPassword, Dashboard, Upload, History,
+  Landing, Register, Login, ForgotPassword, ResetPassword, Dashboard, Upload, History,
   ValidationResults, FraudDetection, ReportsList, AnalyticsPanel,
   SystemSettings, Profile, UserManagement, Page401, Page403, Page404, Page500
 } from './pages';
 
 // Protected Route Guard Component
-const ProtectedRoute: React.FC<{ children: React.ReactNode; roles?: string[] }> = ({ children, roles }) => {
+const ProtectedRoute: React.FC<{ 
+  children: React.ReactNode; 
+  roles?: string[]; 
+  accountTypes?: ('PERSONAL' | 'COMPANY')[];
+}> = ({ children, roles, accountTypes }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -35,7 +39,23 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; roles?: string[] }> 
     return <Navigate to="/403" replace />;
   }
 
+  // Redirect to 403 if account type is not authorized
+  if (accountTypes && !accountTypes.includes(user.account_type)) {
+    return <Navigate to="/403" replace />;
+  }
+
   return <>{children}</>;
+};
+
+// Dashboard Router Redirector
+const DashboardRedirect: React.FC = () => {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.account_type === 'PERSONAL') {
+    return <Navigate to="/personal-dashboard" replace />;
+  } else {
+    return <Navigate to="/company-dashboard" replace />;
+  }
 };
 
 function App() {
@@ -46,9 +66,12 @@ function App() {
           <Router>
             <Routes>
               
-              {/* ================= PUBLIC AUTH PATHS ================= */}
+              {/* ================= PUBLIC PATHS ================= */}
+              <Route path="/" element={<Landing />} />
+              
               <Route element={<AuthLayout />}>
                 <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
               </Route>
@@ -59,46 +82,74 @@ function App() {
                   <DashboardLayout />
                 </ProtectedRoute>
               }>
-                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/dashboard" element={<DashboardRedirect />} />
+                
+                {/* Personal Dashboard */}
+                <Route path="/personal-dashboard" element={
+                  <ProtectedRoute accountTypes={['PERSONAL']}>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } />
+
+                {/* Company Dashboard */}
+                <Route path="/company-dashboard" element={
+                  <ProtectedRoute accountTypes={['COMPANY']}>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } />
+
                 <Route path="/profile" element={<Profile />} />
                 
-                {/* Accountant & Admin only */}
+                {/* Upload - Shared */}
                 <Route path="/upload" element={
                   <ProtectedRoute roles={['Administrator', 'Accountant']}>
                     <Upload />
                   </ProtectedRoute>
                 } />
+
+                {/* Reports - Shared */}
+                <Route path="/reports" element={<ReportsList />} />
+
+                {/* Validation Results - Shared */}
+                <Route path="/validation" element={<ValidationResults />} />
+
+                {/* Company User settings */}
+                <Route path="/settings" element={
+                  <ProtectedRoute accountTypes={['COMPANY']} roles={['Administrator']}>
+                    <SystemSettings />
+                  </ProtectedRoute>
+                } />
+
+                {/* Company User history */}
                 <Route path="/history" element={
-                  <ProtectedRoute roles={['Administrator', 'Accountant']}>
+                  <ProtectedRoute accountTypes={['COMPANY']} roles={['Administrator', 'Accountant']}>
                     <History />
                   </ProtectedRoute>
                 } />
 
-                {/* Validation & Reports & Analytics - All roles */}
-                <Route path="/validation" element={<ValidationResults />} />
-                <Route path="/reports" element={<ReportsList />} />
-                <Route path="/analytics" element={<AnalyticsPanel />} />
+                {/* Company User analytics */}
+                <Route path="/analytics" element={
+                  <ProtectedRoute accountTypes={['COMPANY']}>
+                    <AnalyticsPanel />
+                  </ProtectedRoute>
+                } />
 
-                {/* Admin Only Paths */}
+                {/* Company User fraud */}
                 <Route path="/fraud" element={
-                  <ProtectedRoute roles={['Administrator']}>
+                  <ProtectedRoute accountTypes={['COMPANY']} roles={['Administrator']}>
                     <FraudDetection />
                   </ProtectedRoute>
                 } />
+
+                {/* Company User management */}
                 <Route path="/users" element={
-                  <ProtectedRoute roles={['Administrator']}>
+                  <ProtectedRoute accountTypes={['COMPANY']} roles={['Administrator']}>
                     <UserManagement />
-                  </ProtectedRoute>
-                } />
-                <Route path="/settings" element={
-                  <ProtectedRoute roles={['Administrator']}>
-                    <SystemSettings />
                   </ProtectedRoute>
                 } />
               </Route>
 
               {/* ================= SYSTEM & ERROR REDIRECTS ================= */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/401" element={<Page401 />} />
               <Route path="/403" element={<Page403 />} />
               <Route path="/500" element={<Page500 />} />

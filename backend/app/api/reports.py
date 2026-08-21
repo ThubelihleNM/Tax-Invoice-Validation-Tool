@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from app.database.connection import get_db
 from app.authentication.jwt import require_any_role, require_accountant_or_admin
-from app.models.users import User
+from app.models.users import User, UserRole
 from app.models.invoices import Invoice, InvoiceStatus
 from app.models.suppliers import Supplier
 from app.models.customers import Customer
@@ -74,6 +74,13 @@ def export_report(
     """
     # 1. Base Query
     query = db.query(Invoice)
+    if current_user.role == UserRole.ADMINISTRATOR:
+        if current_user.company_id:
+            query = query.filter(Invoice.company_id == current_user.company_id)
+    elif current_user.account_type == "PERSONAL":
+        query = query.filter(Invoice.uploaded_by == current_user.id)
+    elif current_user.account_type == "COMPANY":
+        query = query.filter(Invoice.company_id == current_user.company_id)
     
     # 2. Apply Filters
     if req.start_date:
@@ -215,7 +222,7 @@ def list_scheduled_reports(
     current_user: User = Depends(require_any_role)
 ):
     """Retrieve active cron scheduled template configurations."""
-    return db.query(ScheduledReport).all()
+    return db.query(ScheduledReport).filter(ScheduledReport.recipient_email == current_user.email).all()
 
 @router.delete("/scheduled/{id}")
 def delete_scheduled_report(

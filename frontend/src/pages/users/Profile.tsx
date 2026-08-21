@@ -13,6 +13,13 @@ interface ProfileDetailsInputs {
   first_name: string;
   last_name: string;
   phone: string;
+  country?: string;
+  occupation?: string;
+  company_name?: string;
+  business_registration_number?: string;
+  tax_number?: string;
+  city?: string;
+  address?: string;
 }
 
 interface ChangePasswordInputs {
@@ -49,6 +56,7 @@ export const Profile: React.FC = () => {
   // Forms setup
   const { register: regProfile, handleSubmit: handleProfileSubmit, reset: resetProfile, formState: { errors: errorsProfile } } = useForm<ProfileDetailsInputs>();
   const { register: regPass, handleSubmit: handlePassSubmit, reset: resetPass, watch: watchPass, formState: { errors: errorsPass } } = useForm<ChangePasswordInputs>();
+  const newPw = watchPass('new_pw');
 
   // Initialize form details when user is loaded
   useEffect(() => {
@@ -56,7 +64,14 @@ export const Profile: React.FC = () => {
       resetProfile({
         first_name: user.first_name,
         last_name: user.last_name,
-        phone: user.phone || ''
+        phone: user.phone || '',
+        country: user.country || '',
+        occupation: user.occupation || '',
+        company_name: user.company_name || '',
+        business_registration_number: user.business_registration_number || '',
+        tax_number: user.tax_number || '',
+        city: user.city || '',
+        address: user.address || ''
       });
       if (user.profile_photo) {
         setPhotoPreview(user.profile_photo);
@@ -273,21 +288,69 @@ export const Profile: React.FC = () => {
                       {...regProfile('last_name', { required: 'Last name is required' })}
                     />
                   </div>
-                  <Input
-                    label="Phone Number"
-                    error={errorsProfile.phone?.message}
-                    {...regProfile('phone', {
-                      pattern: {
-                        value: /^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*$/g,
-                        message: 'Please enter a valid phone number'
-                      }
-                    })}
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label="Phone Number"
+                      error={errorsProfile.phone?.message}
+                      {...regProfile('phone', {
+                        pattern: {
+                          value: /^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*$/g,
+                          message: 'Please enter a valid phone number'
+                        }
+                      })}
+                    />
+                    <Input
+                      label="Country"
+                      error={errorsProfile.country?.message}
+                      {...regProfile('country')}
+                    />
+                  </div>
+
+                  {user.account_type === 'PERSONAL' ? (
+                    <Input
+                      label="Occupation"
+                      error={errorsProfile.occupation?.message}
+                      {...regProfile('occupation')}
+                    />
+                  ) : (
+                    <>
+                      <Input
+                        label="Company Name"
+                        error={errorsProfile.company_name?.message}
+                        {...regProfile('company_name')}
+                      />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input
+                          label="Business Registration Number"
+                          error={errorsProfile.business_registration_number?.message}
+                          {...regProfile('business_registration_number')}
+                        />
+                        <Input
+                          label="Tax/VAT Number"
+                          error={errorsProfile.tax_number?.message}
+                          {...regProfile('tax_number')}
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input
+                          label="City"
+                          error={errorsProfile.city?.message}
+                          {...regProfile('city')}
+                        />
+                        <Input
+                          label="Address"
+                          error={errorsProfile.address?.message}
+                          {...regProfile('address')}
+                        />
+                      </div>
+                    </>
+                  )}
+
                   <Input
                     label="Email Address"
                     disabled
                     value={user.email}
-                    helperText="Corporate email address cannot be edited."
+                    helperText="Account email address cannot be edited."
                   />
                 </CardContent>
                 <CardFooter className="flex justify-end">

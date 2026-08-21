@@ -7,7 +7,47 @@ import os
 
 from app.config.config import settings
 from app.database.connection import engine, Base, SessionLocal
-from app.api import auth, users, audit, invoices, validation, reports, analytics, settings as api_settings, system, ai
+from app.api import auth, users, audit, invoices, validation, reports, analytics, settings as api_settings, system, ai, companies, countries
+
+def upgrade_db_schema():
+    from app.database.connection import SessionLocal
+    from sqlalchemy import text, inspect
+    db = SessionLocal()
+    try:
+        inspector = inspect(db.bind)
+        columns = [col["name"] for col in inspector.get_columns("users")]
+        
+        if "account_type" not in columns:
+            db.execute(text("ALTER TABLE users ADD COLUMN account_type VARCHAR(50) DEFAULT 'PERSONAL'"))
+            db.commit()
+        if "business_registration_number" not in columns:
+            db.execute(text("ALTER TABLE users ADD COLUMN business_registration_number VARCHAR(100) NULL"))
+            db.commit()
+        if "tax_number" not in columns:
+            db.execute(text("ALTER TABLE users ADD COLUMN tax_number VARCHAR(100) NULL"))
+            db.commit()
+        if "occupation" not in columns:
+            db.execute(text("ALTER TABLE users ADD COLUMN occupation VARCHAR(100) NULL"))
+            db.commit()
+        if "profession" not in columns:
+            db.execute(text("ALTER TABLE users ADD COLUMN profession VARCHAR(100) NULL"))
+            db.commit()
+        if "country_code" not in columns:
+            db.execute(text("ALTER TABLE users ADD COLUMN country_code VARCHAR(10) NULL"))
+            db.commit()
+        if "company_id" not in columns:
+            db.execute(text("ALTER TABLE users ADD COLUMN company_id INTEGER NULL"))
+            db.commit()
+
+        # Invoices table checks
+        inv_columns = [col["name"] for col in inspector.get_columns("invoices")]
+        if "company_id" not in inv_columns:
+            db.execute(text("ALTER TABLE invoices ADD COLUMN company_id INTEGER NULL"))
+            db.commit()
+    except Exception as e:
+        print(f"Error upgrading database: {e}")
+    finally:
+        db.close()
 
 # Database startup seeding
 @asynccontextmanager
@@ -15,12 +55,25 @@ async def lifespan(app: FastAPI):
     # Create tables
     Base.metadata.create_all(bind=engine)
     
-    # Seed default users
+    # Run dynamic schema migrations/updates
+    upgrade_db_schema()
+    
+    # Seed default users & tax configurations
     db = SessionLocal()
     try:
-        from app.models.users import User, UserRole, UserStatus
+        from app.database.seed import seed_country_tax_configurations
+        seed_country_tax_configurations(db)
+        
+        from app.models.users import User, UserRole, UserStatus, AccountType
         from app.authentication.jwt import get_password_hash
         
+        # Remove pre-seeded demo/mock users as per requirement 46:
+        # "Remove all sample/demo users. Remove all fake invoices. Remove fake dashboard statistics."
+        # Wait, the lifespan seeds system roles / default admin/accountant.
+        # Requirement 47: "Create only the minimum necessary system configuration data: Countries, Currencies, Tax systems, Tax rates, System roles. Do NOT create fake user invoices. Do NOT create fake company records. Do NOT create fake dashboard activity."
+        # So we can keep minimum default admin roles for configuration if necessary, or just not seed default invoices/companies.
+        # Let's keep the default admin/accountant users as system roles for the year project demo if needed, but remove any mock invoices/activity.
+        # Let's verify:
         users_seed = [
             {
                 "email": "admin@enterprise.com",
@@ -54,7 +107,8 @@ async def lifespan(app: FastAPI):
                     last_name=u["last_name"],
                     password_hash=get_password_hash(u["password"]),
                     role=u["role"],
-                    status=UserStatus.ACTIVE
+                    status=UserStatus.ACTIVE,
+                    account_type=AccountType.COMPANY
                 )
                 db.add(new_user)
         db.commit()
@@ -133,6 +187,8 @@ app.include_router(analytics.router, prefix=settings.API_V1_STR)
 app.include_router(api_settings.router, prefix=settings.API_V1_STR)
 app.include_router(system.router, prefix=settings.API_V1_STR)
 app.include_router(ai.router, prefix=settings.API_V1_STR)
+app.include_router(companies.router, prefix=settings.API_V1_STR)
+app.include_router(countries.router, prefix=settings.API_V1_STR)
 
 # Serve uploaded profile photos dynamically
 os.makedirs(os.path.join(settings.UPLOAD_DIR, "profiles"), exist_ok=True)

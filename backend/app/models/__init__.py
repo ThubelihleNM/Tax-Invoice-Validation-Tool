@@ -10,6 +10,8 @@ from app.models.notifications import Notification, NotificationStatus
 from app.models.settings import SystemSettings
 from app.models.system import BackupRecord, SystemLog
 from app.models.ai import AIConversation, AIMessage, FavoritePrompt, AIInsight
+from app.models.companies import Company
+from app.models.countries import Country, Currency, PhoneCountryCode, TaxSystem, TaxRate, CountryTaxConfiguration
 
 __all__ = [
     "Base",
@@ -37,4 +39,11 @@ __all__ = [
     "AIMessage",
     "FavoritePrompt",
     "AIInsight",
+    "Company",
+    "Country",
+    "Currency",
+    "PhoneCountryCode",
+    "TaxSystem",
+    "TaxRate",
+    "CountryTaxConfiguration",
 ]

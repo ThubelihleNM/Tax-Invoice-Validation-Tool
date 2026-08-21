@@ -14,6 +14,7 @@ from app.models.validation import ValidationResult, ValidationStatus
 from app.services.validation_service import validation_service
 from app.services.report_service import report_service
 from app.repositories.audit_repository import audit_repository
+from app.api.invoices import check_invoice_access
 
 router = APIRouter(prefix="/validation", tags=["Validation"])
 
@@ -34,6 +35,7 @@ def run_invoice_validation(
     invoice = db.query(Invoice).filter(Invoice.invoice_id == invoice_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice record not found.")
+    check_invoice_access(current_user, invoice)
 
     try:
         val_res = validation_service.run_validation(db, invoice_id)
@@ -50,6 +52,11 @@ def get_validation_details(
     current_user: User = Depends(require_any_role)
 ):
     """Retrieve compliance details, AI explanations, checklists, and audit comments."""
+    invoice = db.query(Invoice).filter(Invoice.invoice_id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice record not found.")
+    check_invoice_access(current_user, invoice)
+
     val = db.query(ValidationResult).filter(ValidationResult.invoice_id == invoice_id).first()
     if not val:
         # Auto-run validation once if it has not run yet (lazy evaluation support)
@@ -71,6 +78,7 @@ def administrative_override(
     invoice = db.query(Invoice).filter(Invoice.invoice_id == invoice_id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice record not found.")
+    check_invoice_access(current_user, invoice)
         
     val = invoice.validation_result
     if not val:
@@ -120,6 +128,11 @@ def add_auditor_comment(
     current_user: User = Depends(require_any_role)
 ):
     """Allows accountants, auditors, and administrators to add auditing notes."""
+    invoice = db.query(Invoice).filter(Invoice.invoice_id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice record not found.")
+    check_invoice_access(current_user, invoice)
+
     val = db.query(ValidationResult).filter(ValidationResult.invoice_id == invoice_id).first()
     if not val:
         raise HTTPException(status_code=404, detail="Validation details not found.")
@@ -147,6 +160,11 @@ def download_validation_report(
     current_user: User = Depends(require_any_role)
 ):
     """Serve validation PDF report compiled using ReportLab platypus."""
+    invoice = db.query(Invoice).filter(Invoice.invoice_id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice record not found.")
+    check_invoice_access(current_user, invoice)
+
     val = db.query(ValidationResult).filter(ValidationResult.invoice_id == invoice_id).first()
     if not val or not val.generated_report_path:
         # Attempt to auto generate if missing

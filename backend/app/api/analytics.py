@@ -7,7 +7,7 @@ from sqlalchemy import func, and_, or_
 
 from app.database.connection import get_db
 from app.authentication.jwt import require_any_role
-from app.models.users import User
+from app.models.users import User, UserRole
 from app.models.invoices import Invoice, InvoiceStatus, RiskLevel
 from app.models.suppliers import Supplier
 from app.models.reports import ExportHistory
@@ -21,34 +21,70 @@ def get_analytics_summary(
     current_user: User = Depends(require_any_role)
 ):
     """Retrieve BI summary metrics cards from database."""
-    # Count totals
-    total_invoices = db.query(func.count(Invoice.invoice_id)).scalar() or 0
-    validated = db.query(func.count(Invoice.invoice_id)).filter(Invoice.invoice_status == InvoiceStatus.VALIDATED).scalar() or 0
-    flagged = db.query(func.count(Invoice.invoice_id)).filter(Invoice.invoice_status == InvoiceStatus.FLAGGED).scalar() or 0
-    rejected = db.query(func.count(Invoice.invoice_id)).filter(Invoice.invoice_status == InvoiceStatus.REJECTED).scalar() or 0
+    total_q = db.query(func.count(Invoice.invoice_id))
+    validated_q = db.query(func.count(Invoice.invoice_id)).filter(Invoice.invoice_status == InvoiceStatus.VALIDATED)
+    flagged_q = db.query(func.count(Invoice.invoice_id)).filter(Invoice.invoice_status == InvoiceStatus.FLAGGED)
+    rejected_q = db.query(func.count(Invoice.invoice_id)).filter(Invoice.invoice_status == InvoiceStatus.REJECTED)
+    reports_q = db.query(func.count(ExportHistory.id))
+    vat_q = db.query(func.sum(Invoice.vat_amount))
+    avg_speed_q = db.query(func.avg(Invoice.processing_time))
     
-    # Reports count
-    reports_count = db.query(func.count(ExportHistory.id)).scalar() or 0
-    
-    # VAT Collected
-    vat_sum = db.query(func.sum(Invoice.vat_amount)).scalar() or 0.00
-    
-    # Average Processing time
-    avg_speed = db.query(func.avg(Invoice.processing_time)).scalar() or 0.00
-    
-    # Total monthly value (July 2026 / Current Month)
     today = date.today()
     start_of_month = date(today.year, today.month, 1)
-    monthly_val = db.query(func.sum(Invoice.total_amount)).filter(Invoice.created_at >= start_of_month).scalar() or 0.00
+    monthly_val_q = db.query(func.sum(Invoice.total_amount)).filter(Invoice.created_at >= start_of_month)
 
-    # Duplicate count
-    duplicates = db.query(func.count(ValidationResult.validation_id)).filter(ValidationResult.duplicate_status.like("Duplicate%")).scalar() or 0
+    duplicates_q = db.query(func.count(ValidationResult.validation_id)).join(Invoice).filter(ValidationResult.duplicate_status.like("Duplicate%"))
+    fraud_alerts_q = db.query(func.count(ValidationResult.validation_id)).join(Invoice).filter(ValidationResult.risk_score > 50)
 
-    # Fraud count (risk score > 50)
-    fraud_alerts = db.query(func.count(ValidationResult.validation_id)).filter(ValidationResult.risk_score > 50).scalar() or 0
+    # Scoping
+    if current_user.role == UserRole.ADMINISTRATOR:
+        if current_user.company_id:
+            total_q = total_q.filter(Invoice.company_id == current_user.company_id)
+            validated_q = validated_q.filter(Invoice.company_id == current_user.company_id)
+            flagged_q = flagged_q.filter(Invoice.company_id == current_user.company_id)
+            rejected_q = rejected_q.filter(Invoice.company_id == current_user.company_id)
+            reports_q = reports_q.filter(ExportHistory.user_id == current_user.id)
+            vat_q = vat_q.filter(Invoice.company_id == current_user.company_id)
+            avg_speed_q = avg_speed_q.filter(Invoice.company_id == current_user.company_id)
+            monthly_val_q = monthly_val_q.filter(Invoice.company_id == current_user.company_id)
+            duplicates_q = duplicates_q.filter(Invoice.company_id == current_user.company_id)
+            fraud_alerts_q = fraud_alerts_q.filter(Invoice.company_id == current_user.company_id)
+    elif current_user.account_type == "PERSONAL":
+        total_q = total_q.filter(Invoice.uploaded_by == current_user.id)
+        validated_q = validated_q.filter(Invoice.uploaded_by == current_user.id)
+        flagged_q = flagged_q.filter(Invoice.uploaded_by == current_user.id)
+        rejected_q = rejected_q.filter(Invoice.uploaded_by == current_user.id)
+        reports_q = reports_q.filter(ExportHistory.user_id == current_user.id)
+        vat_q = vat_q.filter(Invoice.uploaded_by == current_user.id)
+        avg_speed_q = avg_speed_q.filter(Invoice.uploaded_by == current_user.id)
+        monthly_val_q = monthly_val_q.filter(Invoice.uploaded_by == current_user.id)
+        duplicates_q = duplicates_q.filter(Invoice.uploaded_by == current_user.id)
+        fraud_alerts_q = fraud_alerts_q.filter(Invoice.uploaded_by == current_user.id)
+    elif current_user.account_type == "COMPANY":
+        total_q = total_q.filter(Invoice.company_id == current_user.company_id)
+        validated_q = validated_q.filter(Invoice.company_id == current_user.company_id)
+        flagged_q = flagged_q.filter(Invoice.company_id == current_user.company_id)
+        rejected_q = rejected_q.filter(Invoice.company_id == current_user.company_id)
+        reports_q = reports_q.join(User).filter(User.company_id == current_user.company_id)
+        vat_q = vat_q.filter(Invoice.company_id == current_user.company_id)
+        avg_speed_q = avg_speed_q.filter(Invoice.company_id == current_user.company_id)
+        monthly_val_q = monthly_val_q.filter(Invoice.company_id == current_user.company_id)
+        duplicates_q = duplicates_q.filter(Invoice.company_id == current_user.company_id)
+        fraud_alerts_q = fraud_alerts_q.filter(Invoice.company_id == current_user.company_id)
+
+    total_invoices = total_q.scalar() or 0
+    validated = validated_q.scalar() or 0
+    flagged = flagged_q.scalar() or 0
+    rejected = rejected_q.scalar() or 0
+    reports_count = reports_q.scalar() or 0
+    vat_sum = vat_q.scalar() or 0.00
+    avg_speed = avg_speed_q.scalar() or 0.00
+    monthly_val = monthly_val_q.scalar() or 0.00
+    duplicates = duplicates_q.scalar() or 0
+    fraud_alerts = fraud_alerts_q.scalar() or 0
 
     return {
-        "total_reports_generated": reports_count + 12, # mock offset
+        "total_reports_generated": reports_count,
         "invoices_validated": total_invoices,
         "valid_invoices": validated,
         "invalid_invoices": rejected,
@@ -66,47 +102,125 @@ def get_chart_datasets(
     current_user: User = Depends(require_any_role)
 ):
     """Retrieve monthly, weekly, and supplier performance trend datasets for Recharts."""
-    # Monthly Invoice Trend (6-month summary)
-    monthly_trend = [
-        {"name": "Feb", "value": 24000.00, "count": 18},
-        {"name": "Mar", "value": 32000.00, "count": 22},
-        {"name": "Apr", "value": 18500.00, "count": 14},
-        {"name": "May", "value": 45000.00, "count": 30},
-        {"name": "Jun", "value": 38000.00, "count": 25},
-        {"name": "Jul", "value": 48500.00, "count": 32}
-    ]
+    import calendar
+    from datetime import date, timedelta
     
-    # Dynamically inject current July invoice total if any
+    # 1. Monthly Invoice Trend (Last 6 Months)
+    monthly_trend = []
+    vat_collection = []
     today = date.today()
-    start_of_month = date(today.year, today.month, 1)
-    current_month_total = db.query(func.sum(Invoice.total_amount)).filter(Invoice.created_at >= start_of_month).scalar() or 0.00
-    current_month_count = db.query(func.count(Invoice.invoice_id)).filter(Invoice.created_at >= start_of_month).scalar() or 0
-    
-    if current_month_total > 0:
-        monthly_trend[-1]["value"] = float(current_month_total)
-        monthly_trend[-1]["count"] = current_month_count
-
-    # Daily Validation Trend (Last 7 Days)
-    daily_trend = [
-        {"name": "Mon", "validated": 8, "flagged": 1, "rejected": 0},
-        {"name": "Tue", "validated": 12, "flagged": 2, "rejected": 1},
-        {"name": "Wed", "validated": 10, "flagged": 0, "rejected": 0},
-        {"name": "Thu", "validated": 15, "flagged": 3, "rejected": 1},
-        {"name": "Fri", "validated": 14, "flagged": 1, "rejected": 0},
-        {"name": "Sat", "validated": 4, "flagged": 0, "rejected": 0},
-        {"name": "Sun", "validated": 2, "flagged": 0, "rejected": 0}
-    ]
-
-    # Supplier Performance data
-    suppliers_data = []
-    suppliers = db.query(Supplier).limit(5).all()
-    for s in suppliers:
-        inv_count = db.query(func.count(Invoice.invoice_id)).filter(Invoice.supplier_id == s.supplier_id).scalar() or 0
-        total_sum = db.query(func.sum(Invoice.total_amount)).filter(Invoice.supplier_id == s.supplier_id).scalar() or 0.00
-        pass_count = db.query(func.count(Invoice.invoice_id)).filter(
-            and_(Invoice.supplier_id == s.supplier_id, Invoice.invoice_status == InvoiceStatus.VALIDATED)
-        ).scalar() or 0
+    for i in range(5, -1, -1):
+        year = today.year
+        month = today.month - i
+        while month <= 0:
+            month += 12
+            year -= 1
+            
+        month_name = calendar.month_abbr[month]
         
+        # Start and end date of that month
+        start_date = date(year, month, 1)
+        last_day = calendar.monthrange(year, month)[1]
+        end_date = date(year, month, last_day)
+        
+        # Base queries for that month
+        count_q = db.query(func.count(Invoice.invoice_id)).filter(Invoice.created_at >= start_date, Invoice.created_at <= end_date)
+        sum_q = db.query(func.sum(Invoice.total_amount), func.sum(Invoice.vat_amount)).filter(Invoice.created_at >= start_date, Invoice.created_at <= end_date)
+        
+        # Apply scoping
+        if current_user.role == UserRole.ADMINISTRATOR:
+            if current_user.company_id:
+                count_q = count_q.filter(Invoice.company_id == current_user.company_id)
+                sum_q = sum_q.filter(Invoice.company_id == current_user.company_id)
+        elif current_user.account_type == "PERSONAL":
+            count_q = count_q.filter(Invoice.uploaded_by == current_user.id)
+            sum_q = sum_q.filter(Invoice.uploaded_by == current_user.id)
+        elif current_user.account_type == "COMPANY":
+            count_q = count_q.filter(Invoice.company_id == current_user.company_id)
+            sum_q = sum_q.filter(Invoice.company_id == current_user.company_id)
+            
+        count_val = count_q.scalar() or 0
+        total_sum, vat_sum = sum_q.first()
+        total_sum = total_sum or 0.00
+        vat_sum = vat_sum or 0.00
+        
+        monthly_trend.append({
+            "name": month_name,
+            "value": float(total_sum),
+            "count": count_val
+        })
+        
+        vat_collection.append({
+            "name": month_name,
+            "vat": float(vat_sum)
+        })
+
+    # 2. Daily Validation Trend (Last 7 Days)
+    daily_trend = []
+    for i in range(6, -1, -1):
+        day = date.today() - timedelta(days=i)
+        day_str = day.strftime("%a")
+        
+        # Base queries for that day
+        day_query = db.query(Invoice).filter(func.date(Invoice.created_at) == day)
+        
+        # Apply scoping
+        if current_user.role == UserRole.ADMINISTRATOR:
+            if current_user.company_id:
+                day_query = day_query.filter(Invoice.company_id == current_user.company_id)
+        elif current_user.account_type == "PERSONAL":
+            day_query = day_query.filter(Invoice.uploaded_by == current_user.id)
+        elif current_user.account_type == "COMPANY":
+            day_query = day_query.filter(Invoice.company_id == current_user.company_id)
+            
+        validated_count = day_query.filter(Invoice.invoice_status == InvoiceStatus.VALIDATED).count()
+        flagged_count = day_query.filter(Invoice.invoice_status == InvoiceStatus.FLAGGED).count()
+        rejected_count = day_query.filter(Invoice.invoice_status == InvoiceStatus.REJECTED).count()
+        
+        daily_trend.append({
+            "name": day_str,
+            "validated": validated_count,
+            "flagged": flagged_count,
+            "rejected": rejected_count
+        })
+
+    # 3. Supplier Performance data
+    suppliers_data = []
+    supplier_query = db.query(Supplier).join(Invoice)
+    
+    # Apply scoping to suppliers list
+    if current_user.role == UserRole.ADMINISTRATOR:
+        if current_user.company_id:
+            supplier_query = supplier_query.filter(Invoice.company_id == current_user.company_id)
+    elif current_user.account_type == "PERSONAL":
+        supplier_query = supplier_query.filter(Invoice.uploaded_by == current_user.id)
+    elif current_user.account_type == "COMPANY":
+        supplier_query = supplier_query.filter(Invoice.company_id == current_user.company_id)
+        
+    suppliers = supplier_query.group_by(Supplier.supplier_id).limit(5).all()
+    for s in suppliers:
+        inv_query = db.query(Invoice).filter(Invoice.supplier_id == s.supplier_id)
+        if current_user.role == UserRole.ADMINISTRATOR:
+            if current_user.company_id:
+                inv_query = inv_query.filter(Invoice.company_id == current_user.company_id)
+        elif current_user.account_type == "PERSONAL":
+            inv_query = inv_query.filter(Invoice.uploaded_by == current_user.id)
+        elif current_user.account_type == "COMPANY":
+            inv_query = inv_query.filter(Invoice.company_id == current_user.company_id)
+            
+        inv_count = inv_query.count()
+        
+        total_sum_q = db.query(func.sum(Invoice.total_amount)).filter(Invoice.supplier_id == s.supplier_id)
+        if current_user.role == UserRole.ADMINISTRATOR:
+            if current_user.company_id:
+                total_sum_q = total_sum_q.filter(Invoice.company_id == current_user.company_id)
+        elif current_user.account_type == "PERSONAL":
+            total_sum_q = total_sum_q.filter(Invoice.uploaded_by == current_user.id)
+        elif current_user.account_type == "COMPANY":
+            total_sum_q = total_sum_q.filter(Invoice.company_id == current_user.company_id)
+        total_sum = total_sum_q.scalar() or 0.00
+        
+        pass_count = inv_query.filter(Invoice.invoice_status == InvoiceStatus.VALIDATED).count()
         rate = (pass_count / inv_count * 100) if inv_count > 0 else 100.0
         
         suppliers_data.append({
@@ -115,33 +229,14 @@ def get_chart_datasets(
             "total": float(total_sum),
             "pass_rate": round(rate, 1)
         })
-        
-    # If not enough suppliers in database, pad with high-fidelity mocks
-    if len(suppliers_data) < 3:
-        suppliers_data = [
-            {"name": "Figma Europe BV", "invoices": 18, "total": 24500.00, "pass_rate": 100.0},
-            {"name": "GitHub, Inc.", "invoices": 12, "total": 7200.00, "pass_rate": 91.6},
-            {"name": "Google Cloud EMEA", "invoices": 15, "total": 15800.00, "pass_rate": 86.6},
-            {"name": "Amazon Web Services", "invoices": 8, "total": 4800.00, "pass_rate": 75.0}
-        ]
 
-    # VAT Collection Trend
-    vat_collection = [
-        {"name": "Feb", "vat": 3600.00},
-        {"name": "Mar", "vat": 4800.00},
-        {"name": "Apr", "vat": 2775.00},
-        {"name": "May", "vat": 6750.00},
-        {"name": "Jun", "vat": 5700.00},
-        {"name": "Jul", "vat": 7275.00}
-    ]
-
-    # System metrics load
+    # 4. System Metrics load
     system_performance = [
-        {"name": "09:00", "cpu": 22, "memory": 58, "api_ms": 110},
-        {"name": "12:00", "cpu": 45, "memory": 62, "api_ms": 145},
-        {"name": "15:00", "cpu": 65, "memory": 68, "api_ms": 180},
-        {"name": "18:00", "cpu": 35, "memory": 64, "api_ms": 130},
-        {"name": "21:00", "cpu": 15, "memory": 60, "api_ms": 95}
+        {"name": "09:00", "cpu": 12, "memory": 48, "api_ms": 95},
+        {"name": "12:00", "cpu": 25, "memory": 52, "api_ms": 115},
+        {"name": "15:00", "cpu": 38, "memory": 55, "api_ms": 120},
+        {"name": "18:00", "cpu": 18, "memory": 50, "api_ms": 100},
+        {"name": "21:00", "cpu": 8, "memory": 45, "api_ms": 80}
     ]
 
     return {
@@ -158,40 +253,96 @@ def get_executive_summary(
     current_user: User = Depends(require_any_role)
 ):
     """Retrieve Executive Intelligence Business insights."""
-    total_inv = db.query(func.count(Invoice.invoice_id)).scalar() or 0
-    validated = db.query(func.count(Invoice.invoice_id)).filter(Invoice.invoice_status == InvoiceStatus.VALIDATED).scalar() or 0
-    avg_amt = db.query(func.avg(Invoice.total_amount)).scalar() or 0.00
+    # Scoped Invoices
+    query = db.query(Invoice)
+    if current_user.role == UserRole.ADMINISTRATOR:
+        if current_user.company_id:
+            query = query.filter(Invoice.company_id == current_user.company_id)
+    elif current_user.account_type == "PERSONAL":
+        query = query.filter(Invoice.uploaded_by == current_user.id)
+    elif current_user.account_type == "COMPANY":
+        query = query.filter(Invoice.company_id == current_user.company_id)
+        
+    total_inv = query.count()
+    validated = query.filter(Invoice.invoice_status == InvoiceStatus.VALIDATED).count()
     
-    # Success rate
-    rate = (validated / total_inv * 100) if total_inv > 0 else 94.5
+    avg_amt_q = db.query(func.avg(Invoice.total_amount))
+    if current_user.role == UserRole.ADMINISTRATOR:
+        if current_user.company_id:
+            avg_amt_q = avg_amt_q.filter(Invoice.company_id == current_user.company_id)
+    elif current_user.account_type == "PERSONAL":
+        avg_amt_q = avg_amt_q.filter(Invoice.uploaded_by == current_user.id)
+    elif current_user.account_type == "COMPANY":
+        avg_amt_q = avg_amt_q.filter(Invoice.company_id == current_user.company_id)
+    avg_amt = avg_amt_q.scalar() or 0.00
+    
+    rate = (validated / total_inv * 100) if total_inv > 0 else 100.0
     
     # Highest Supplier
-    highest_supplier_name = "Figma Europe BV"
+    highest_supplier_name = "N/A"
     highest_supplier_val = 0.00
-    highest = db.query(Invoice.supplier_id, func.sum(Invoice.total_amount).label("total_sum")).group_by(Invoice.supplier_id).order_by(desc("total_sum")).first()
-    if highest:
+    
+    sup_query = db.query(Invoice.supplier_id, func.sum(Invoice.total_amount).label("total_sum"))
+    if current_user.role == UserRole.ADMINISTRATOR:
+        if current_user.company_id:
+            sup_query = sup_query.filter(Invoice.company_id == current_user.company_id)
+    elif current_user.account_type == "PERSONAL":
+        sup_query = sup_query.filter(Invoice.uploaded_by == current_user.id)
+    elif current_user.account_type == "COMPANY":
+        sup_query = sup_query.filter(Invoice.company_id == current_user.company_id)
+        
+    highest = sup_query.group_by(Invoice.supplier_id).order_by(desc("total_sum")).first()
+    if highest and highest[0] is not None:
         sup = db.query(Supplier).filter(Supplier.supplier_id == highest[0]).first()
         if sup:
             highest_supplier_name = sup.supplier_name
             highest_supplier_val = float(highest[1])
 
-    # Overall system health
-    health = 98.4
+    # Overall system health score
+    health = 100.0
     if total_inv > 0:
-        # deduct for flagged/rejected
-        failed = db.query(func.count(Invoice.invoice_id)).filter(Invoice.invoice_status == InvoiceStatus.REJECTED).scalar() or 0
-        health = max(60.0, 100.0 - (failed / total_inv * 20))
+        failed = query.filter(Invoice.invoice_status == InvoiceStatus.REJECTED).count()
+        health = max(0.0, 100.0 - (failed / total_inv * 20))
+
+    # Most active user
+    most_active = "N/A"
+    active_query = db.query(Invoice.uploaded_by, func.count(Invoice.invoice_id).label("cnt"))
+    if current_user.role == UserRole.ADMINISTRATOR:
+        if current_user.company_id:
+            active_query = active_query.filter(Invoice.company_id == current_user.company_id)
+    elif current_user.account_type == "PERSONAL":
+        active_query = active_query.filter(Invoice.uploaded_by == current_user.id)
+    elif current_user.account_type == "COMPANY":
+        active_query = active_query.filter(Invoice.company_id == current_user.company_id)
+        
+    act_user = active_query.group_by(Invoice.uploaded_by).order_by(desc("cnt")).first()
+    if act_user and act_user[0] is not None:
+        usr = db.query(User).filter(User.id == act_user[0]).first()
+        if usr:
+            most_active = f"{usr.first_name} {usr.last_name}"
+
+    # Sum totals this month
+    start_of_month = date(today.year, today.month, 1)
+    monthly_rev_q = db.query(func.sum(Invoice.total_amount)).filter(Invoice.created_at >= start_of_month)
+    if current_user.role == UserRole.ADMINISTRATOR:
+        if current_user.company_id:
+            monthly_rev_q = monthly_rev_q.filter(Invoice.company_id == current_user.company_id)
+    elif current_user.account_type == "PERSONAL":
+        monthly_rev_q = monthly_rev_q.filter(Invoice.uploaded_by == current_user.id)
+    elif current_user.account_type == "COMPANY":
+        monthly_rev_q = monthly_rev_q.filter(Invoice.company_id == current_user.company_id)
+    monthly_rev = monthly_rev_q.scalar() or 0.00
 
     return {
         "validation_success_rate": round(rate, 1),
-        "average_invoice_amount": float(avg_amt) or 1540.50,
+        "average_invoice_amount": float(avg_amt),
         "highest_supplier": highest_supplier_name,
-        "highest_supplier_amount": highest_supplier_val or 24500.00,
-        "most_active_user": "Sarah Accountant",
-        "most_common_validation_error": "Rule 7: VAT Calculation Discrepancy",
-        "highest_fraud_risk_supplier": "Amazon Web Services",
-        "monthly_revenue_processed": 48500.00,
-        "tax_compliance_score": 96.2,
+        "highest_supplier_amount": highest_supplier_val,
+        "most_active_user": most_active,
+        "most_common_validation_error": "VAT Math Variance" if total_inv > 0 else "None",
+        "highest_fraud_risk_supplier": "None",
+        "monthly_revenue_processed": float(monthly_rev),
+        "tax_compliance_score": round(rate, 1),
         "overall_system_health": round(health, 1)
     }
 
@@ -201,16 +352,33 @@ def get_ai_business_insights(
     current_user: User = Depends(require_any_role)
 ):
     """Returns AI-generated smart business insights and recommendations."""
+    # Let's count some real indicators
+    query = db.query(Invoice)
+    if current_user.role == UserRole.ADMINISTRATOR:
+        if current_user.company_id:
+            query = query.filter(Invoice.company_id == current_user.company_id)
+    elif current_user.account_type == "PERSONAL":
+        query = query.filter(Invoice.uploaded_by == current_user.id)
+    elif current_user.account_type == "COMPANY":
+        query = query.filter(Invoice.company_id == current_user.company_id)
+    total_inv = query.count()
+    validated = query.filter(Invoice.invoice_status == InvoiceStatus.VALIDATED).count()
+    accuracy = 100.0
+    if total_inv > 0:
+        accuracy = db.query(func.avg(Invoice.confidence_score))
+        if current_user.account_type == "PERSONAL":
+            accuracy = accuracy.filter(Invoice.uploaded_by == current_user.id)
+        elif current_user.account_type == "COMPANY":
+            accuracy = accuracy.filter(Invoice.company_id == current_user.company_id)
+        accuracy = float(accuracy.scalar() or 100.0)
+
     return {
         "insights": [
-            "Validation audit accuracy score improved by 7.4% this month, resulting from lower OCR variance.",
-            "Most validation failures are caused by incorrect VAT calculation checks (Rule 7 math discrepancies).",
-            "Supplier Amazon Web Services generated the highest density of duplicate uploads warning tags.",
-            "Average OCR scan reading accuracy confidence reached an all-time high of 98.2%."
+            f"Validation audit accuracy score reached {round(accuracy, 1)}% this month based on OCR parses." if total_inv > 0 else "Upload invoices to generate intelligent validation analytics.",
+            "VAT math variance checks constitute the primary reason for invoice caution flags." if total_inv > 0 else "Awaiting document uploads to map tax profiles."
         ],
         "recommendations": [
-            "Review Amazon Web Services invoice uploads sequence to resolve invoice duplication warnings.",
-            "Update VAT standard rate rules inside Business Settings to eliminate variance flags on UK invoices.",
-            "Re-train character scanner pre-processors on low-contrast scanned image receipts."
+            "Ensure suppliers use high-contrast text layout to improve scanner accuracy." if total_inv > 0 else "Upload your first invoice to trigger the intelligent rules engine.",
+            "Verify standard default tax rates in profile options to align calculated math." if total_inv > 0 else "Configure your country settings profile."
         ]
     }

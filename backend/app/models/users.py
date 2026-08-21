@@ -1,22 +1,29 @@
-from sqlalchemy import Column, Integer, String, DateTime, Enum, func, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Enum, func, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database.connection import Base
 import enum
 
 class UserRole(str, enum.Enum):
+    OWNER = "Owner"
     ADMINISTRATOR = "Administrator"
     ACCOUNTANT = "Accountant"
     AUDITOR = "Auditor"
+    VIEWER = "Viewer"
 
 class UserStatus(str, enum.Enum):
     ACTIVE = "Active"
     INACTIVE = "Inactive"
     SUSPENDED = "Suspended"
 
+class AccountType(str, enum.Enum):
+    PERSONAL = "PERSONAL"
+    COMPANY = "COMPANY"
+
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+    account_type = Column(Enum(AccountType), default=AccountType.PERSONAL, nullable=False)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
@@ -25,6 +32,16 @@ class User(Base):
     role = Column(Enum(UserRole), default=UserRole.ACCOUNTANT, nullable=False)
     profile_photo = Column(String(255), nullable=True)
     status = Column(Enum(UserStatus), default=UserStatus.ACTIVE, nullable=False)
+    
+    # SaaS onboarding fields
+    business_registration_number = Column(String(100), nullable=True)
+    tax_number = Column(String(100), nullable=True)
+    occupation = Column(String(100), nullable=True)
+    profession = Column(String(100), nullable=True)
+    
+    # Company reference
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="SET NULL"), nullable=True)
+    country_code = Column(String(10), nullable=True)
     
     # Session, security & auth tracking fields (Module 2)
     last_login = Column(DateTime(timezone=True), nullable=True)
@@ -56,6 +73,7 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
+    company = relationship("Company", back_populates="members", foreign_keys=[company_id])
     uploaded_invoices = relationship("Invoice", back_populates="uploader")
     audit_logs = relationship("AuditLog", back_populates="user")
     notifications = relationship("Notification", back_populates="user")

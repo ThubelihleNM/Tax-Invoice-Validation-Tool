@@ -1,3 +1,5 @@
+export * from './Landing';
+export * from './authentication/Register';
 export * from './authentication/Login';
 export * from './authentication/ForgotPassword';
 export * from './authentication/ResetPassword';

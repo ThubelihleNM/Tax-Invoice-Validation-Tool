@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from app.database.connection import get_db
 from app.authentication.jwt import require_accountant_or_admin, require_any_role
-from app.models.users import User
+from app.models.users import User, UserRole
 from app.models.invoices import Invoice, InvoiceItem, InvoiceStatus, RiskLevel, OcrStatus
 from app.models.suppliers import Supplier, SupplierStatus
 from app.models.customers import Customer
@@ -21,6 +21,18 @@ from app.schemas.invoices import InvoiceResponse, InvoiceUpdate
 from app.config.config import settings
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
+
+def check_invoice_access(user: User, invoice: Invoice):
+    if user.role == UserRole.ADMINISTRATOR:
+        if user.company_id and invoice.company_id != user.company_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. This invoice belongs to another organization.")
+        return
+    if user.account_type == "PERSONAL":
+        if invoice.uploaded_by != user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. You do not own this invoice.")
+    elif user.account_type == "COMPANY":
+        if invoice.company_id != user.company_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. This invoice belongs to another company.")
 
 # Directory to save invoices
 UPLOAD_INVOICE_DIR = os.path.join(settings.UPLOAD_DIR, "invoices")
@@ -57,6 +69,13 @@ def list_invoices(
 ):
     """Retrieve search-filtered historical invoice list."""
     query = db.query(Invoice)
+    if current_user.role == UserRole.ADMINISTRATOR:
+        if current_user.company_id:
+            query = query.filter(Invoice.company_id == current_user.company_id)
+    elif current_user.account_type == "PERSONAL":
+        query = query.filter(Invoice.uploaded_by == current_user.id)
+    elif current_user.account_type == "COMPANY":
+        query = query.filter(Invoice.company_id == current_user.company_id)
     
     if status:
         query = query.filter(Invoice.invoice_status == status)
@@ -82,7 +101,15 @@ def get_recent_uploads(
     current_user: User = Depends(require_any_role)
 ):
     """Retrieve 5 most recently uploaded invoices."""
-    return db.query(Invoice).order_by(desc(Invoice.created_at)).limit(5).all()
+    query = db.query(Invoice)
+    if current_user.role == UserRole.ADMINISTRATOR:
+        if current_user.company_id:
+            query = query.filter(Invoice.company_id == current_user.company_id)
+    elif current_user.account_type == "PERSONAL":
+        query = query.filter(Invoice.uploaded_by == current_user.id)
+    elif current_user.account_type == "COMPANY":
+        query = query.filter(Invoice.company_id == current_user.company_id)
+    return query.order_by(desc(Invoice.created_at)).limit(5).all()
 
 @router.get("/{id}", response_model=InvoiceResponse)
 def get_invoice_details(
@@ -94,6 +121,7 @@ def get_invoice_details(
     invoice = db.query(Invoice).filter(Invoice.invoice_id == id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice record not found")
+    check_invoice_access(current_user, invoice)
     return invoice
 
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
@@ -242,6 +270,7 @@ async def upload_invoice(
         ocr_status=OcrStatus.SUCCESS,
         file_path=f"/uploads/invoices/{unique_fn}",
         uploaded_by=current_user.id,
+        company_id=current_user.company_id,
         ocr_text=ocr_result["raw_text"],
         extracted_json=fields,
         processing_time=decimal.Decimal(str(ocr_result["processing_time"])),
@@ -264,6 +293,17 @@ async def upload_invoice(
         db.add(db_item)
     db.commit()
     db.refresh(invoice)
+
+    # Automatically execute compliance validation checks on upload
+    try:
+        from app.services.validation_service import validation_service
+        from app.services.report_service import report_service
+        validation_service.run_validation(db, invoice.invoice_id)
+        report_service.generate_validation_pdf(db, invoice.invoice_id)
+        db.refresh(invoice)
+    except Exception as val_err:
+        # Non-blocking log to ensure file uploads succeed even if database seeding has issues
+        print(f"Auto-validation on upload failed: {val_err}")
 
     # Audit log OCR completed
     audit_repository.create(
@@ -296,6 +336,7 @@ def save_invoice_edits(
     invoice = db.query(Invoice).filter(Invoice.invoice_id == id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice record not found")
+    check_invoice_access(current_user, invoice)
 
     # Sync dates
     inv_date = None
@@ -356,6 +397,7 @@ def delete_invoice(
     invoice = db.query(Invoice).filter(Invoice.invoice_id == id).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice record not found")
+    check_invoice_access(current_user, invoice)
 
     # Remove physical file if exists
     if invoice.file_path:

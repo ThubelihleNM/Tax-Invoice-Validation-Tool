@@ -44,7 +44,119 @@ document.addEventListener("DOMContentLoaded", () => {
   // Bind Logout buttons
   document.getElementById("logoutBtn").addEventListener("click", handleLogout);
   document.getElementById("headerLogoutBtn").addEventListener("click", handleLogout);
+
+  // Bind Landing Page controls
+  const landingPage = document.getElementById("landingPageContainer");
+  const authContainer = document.getElementById("authContainer");
+
+  const showLogin = () => {
+    if (landingPage) landingPage.style.display = "none";
+    if (authContainer) authContainer.style.display = "flex";
+    showAuthCard("loginCard");
+  };
+
+  const showSignup = (preferredType = "PERSONAL") => {
+    if (landingPage) landingPage.style.display = "none";
+    if (authContainer) authContainer.style.display = "flex";
+    showAuthCard("signupCard");
+    setSignupAccountType(preferredType);
+  };
+
+  document.getElementById("landingSignInBtn")?.addEventListener("click", showLogin);
+  document.getElementById("heroSignInBtn")?.addEventListener("click", showLogin);
+  document.getElementById("landingSignUpBtn")?.addEventListener("click", () => showSignup("PERSONAL"));
+  document.getElementById("heroGetStartedBtn")?.addEventListener("click", () => showSignup("PERSONAL"));
+  document.getElementById("personalCtaBtn")?.addEventListener("click", () => showSignup("PERSONAL"));
+  document.getElementById("companyCtaBtn")?.addEventListener("click", () => showSignup("COMPANY"));
+
+  document.getElementById("tabPersonalBtn")?.addEventListener("click", () => setSignupAccountType("PERSONAL"));
+  document.getElementById("tabCompanyBtn")?.addEventListener("click", () => setSignupAccountType("COMPANY"));
+
+  if (typeof initLegacySignupUpgrade === "function") {
+    initLegacySignupUpgrade();
+  }
 });
+
+function goBackToLanding() {
+  document.getElementById("authContainer").style.display = "none";
+  document.getElementById("landingPageContainer").style.display = "block";
+}
+window.goBackToLanding = goBackToLanding;
+window.handleLoginSubmit = handleLoginSubmit;
+window.handleSignupSubmit = handleSignupSubmit;
+window.handleForgotSubmit = handleForgotSubmit;
+window.handleResetSubmit = handleResetSubmit;
+window.showAuthCard = showAuthCard;
+
+function setSignupAccountType(type) {
+  const hiddenType = document.getElementById("signupAccountType");
+  if (!hiddenType) return;
+  
+  hiddenType.value = type;
+  
+  const tabPersonal = document.getElementById("tabPersonalBtn");
+  const tabCompany = document.getElementById("tabCompanyBtn");
+  const personalFields = document.getElementById("personalSignupFields");
+  const companyFields = document.getElementById("companySignupFields");
+
+  if (type === "PERSONAL") {
+    tabPersonal.classList.add("active");
+    tabCompany.classList.remove("active");
+    
+    tabPersonal.style.borderColor = "var(--primary)";
+    tabPersonal.style.backgroundColor = "var(--primary-light)";
+    tabPersonal.querySelector("span").style.color = "var(--primary)";
+    tabPersonal.querySelector("svg").style.color = "var(--primary)";
+    
+    tabCompany.style.borderColor = "var(--border-color)";
+    tabCompany.style.backgroundColor = "white";
+    tabCompany.querySelector("span").style.color = "var(--text-muted)";
+    tabCompany.querySelector("svg").style.color = "var(--text-muted)";
+
+    personalFields.style.display = "block";
+    companyFields.style.display = "none";
+    
+    document.getElementById("signupFirstName").required = true;
+    document.getElementById("signupLastName").required = true;
+    document.getElementById("signupEmail").required = true;
+    
+    document.getElementById("signupCompanyName").required = false;
+    document.getElementById("signupBusinessReg").required = false;
+    document.getElementById("signupTaxNumber").required = false;
+    document.getElementById("signupContactFirstName").required = false;
+    document.getElementById("signupContactLastName").required = false;
+    document.getElementById("signupBusinessEmail").required = false;
+  } else {
+    tabCompany.classList.add("active");
+    tabPersonal.classList.remove("active");
+    
+    tabCompany.style.borderColor = "var(--primary)";
+    tabCompany.style.backgroundColor = "var(--primary-light)";
+    tabCompany.querySelector("span").style.color = "var(--primary)";
+    tabCompany.querySelector("svg").style.color = "var(--primary)";
+    
+    tabPersonal.style.borderColor = "var(--border-color)";
+    tabPersonal.style.backgroundColor = "white";
+    tabPersonal.querySelector("span").style.color = "var(--text-muted)";
+    tabPersonal.querySelector("svg").style.color = "var(--text-muted)";
+
+    personalFields.style.display = "none";
+    companyFields.style.display = "block";
+
+    document.getElementById("signupFirstName").required = false;
+    document.getElementById("signupLastName").required = false;
+    document.getElementById("signupEmail").required = false;
+    
+    document.getElementById("signupCompanyName").required = true;
+    document.getElementById("signupBusinessReg").required = true;
+    document.getElementById("signupTaxNumber").required = true;
+    document.getElementById("signupContactFirstName").required = true;
+    document.getElementById("signupContactLastName").required = true;
+    document.getElementById("signupBusinessEmail").required = true;
+  }
+  lucide.createIcons();
+}
+window.setSignupAccountType = setSignupAccountType;
 
 // Switch active layout panels in auth screens
 function showAuthCard(cardId) {
@@ -62,12 +174,18 @@ function checkAuthState() {
   const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
   const mainWorkspace = document.getElementById("mainWorkspaceContainer");
   const authContainer = document.getElementById("authContainer");
+  const landingPage = document.getElementById("landingPageContainer");
 
   if (!token) {
     mainWorkspace.style.display = "none";
-    authContainer.style.display = "flex";
-    showAuthCard("loginCard");
+    if (authContainer.style.display === "flex") {
+      landingPage.style.display = "none";
+    } else {
+      landingPage.style.display = "block";
+      authContainer.style.display = "none";
+    }
   } else {
+    if (landingPage) landingPage.style.display = "none";
     authContainer.style.display = "none";
     mainWorkspace.style.display = "flex";
     
@@ -76,6 +194,8 @@ function checkAuthState() {
     const lastName = localStorage.getItem("user_last_name") || "Doe";
     const email = localStorage.getItem("user_email") || "jane.doe@enterprise.com";
     const role = localStorage.getItem("user_role") || "Auditor";
+    const accountType = localStorage.getItem("user_account_type") || "PERSONAL";
+    const isPersonal = accountType === "PERSONAL";
 
     document.querySelectorAll(".user-name").forEach(el => el.textContent = `${firstName} ${lastName}`);
     document.querySelectorAll(".user-email").forEach(el => el.textContent = email);
@@ -90,12 +210,36 @@ function checkAuthState() {
     // Check Administrator role to hide/show Users panel tab
     const usersTabLink = document.querySelector('.sidebar-nav .nav-item[data-tab="users"]');
     if (usersTabLink) {
-      usersTabLink.style.display = role === "Administrator" ? "flex" : "none";
+      usersTabLink.style.display = (role === "Administrator" && !isPersonal) ? "flex" : "none";
     }
 
     const quickUpload = document.getElementById("quickUploadBtn");
     if (quickUpload) {
-      quickUpload.style.display = (role === "Administrator" || role === "Accountant") ? "block" : "none";
+      quickUpload.style.display = "block"; // Personal users can upload too!
+    }
+
+    // Hide history and reports for personal users
+    const reportsTab = document.querySelector('.sidebar-nav .nav-item[data-tab="reports"]');
+    const historyTab = document.querySelector('.sidebar-nav .nav-item[data-tab="history"]');
+    if (reportsTab) reportsTab.style.display = isPersonal ? "none" : "flex";
+    if (historyTab) historyTab.style.display = isPersonal ? "none" : "flex";
+
+    // Toggle profile form inputs
+    const companyGroup = document.getElementById("profCompany")?.closest(".form-group-validation");
+    const taxGroup = document.getElementById("profTaxId")?.closest(".form-group-validation");
+    const cityGroup = document.getElementById("profCity")?.closest(".form-group-validation");
+    const addressGroup = document.getElementById("profAddress")?.closest(".form-group-validation");
+    const postalGroup = document.getElementById("profPostal")?.closest(".form-group-validation");
+
+    if (companyGroup) companyGroup.style.display = isPersonal ? "none" : "block";
+    if (taxGroup) taxGroup.style.display = isPersonal ? "none" : "block";
+    if (cityGroup) cityGroup.style.display = isPersonal ? "none" : "block";
+    if (addressGroup) addressGroup.style.display = isPersonal ? "none" : "block";
+    if (postalGroup) postalGroup.style.display = isPersonal ? "none" : "block";
+
+    const jobTitleLabel = document.getElementById("profJobTitle")?.previousElementSibling;
+    if (jobTitleLabel) {
+      jobTitleLabel.textContent = isPersonal ? "Occupation" : "Job Title";
     }
 
     // Refresh dynamic data
@@ -139,6 +283,11 @@ async function handleLoginSubmit() {
   const password = document.getElementById("loginPassword").value;
   const rememberMe = document.getElementById("loginRememberMe").checked;
 
+  if (password.length < 8) {
+    showToast("Password must be at least 8 characters long.");
+    return;
+  }
+
   try {
     const res = await fetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
@@ -154,7 +303,8 @@ async function handleLoginSubmit() {
       localStorage.setItem("user_first_name", data.user.first_name);
       localStorage.setItem("user_last_name", data.user.last_name);
       localStorage.setItem("user_email", data.user.email);
-      localStorage.setItem("user_role", data.role);
+      localStorage.setItem("user_role", data.role || data.user.role || "Auditor");
+      localStorage.setItem("user_account_type", data.user.account_type || "PERSONAL");
       
       showToast("Access granted successfully.");
       checkAuthState();
@@ -167,37 +317,96 @@ async function handleLoginSubmit() {
 }
 
 async function handleSignupSubmit() {
-  const firstName = document.getElementById("signupFirstName").value.trim();
-  const lastName = document.getElementById("signupLastName").value.trim();
-  const companyName = document.getElementById("signupCompanyName").value.trim();
-  const email = document.getElementById("signupEmail").value.trim();
-  const phone = document.getElementById("signupPhone").value.trim();
+  const accountType = document.getElementById("signupAccountType").value;
   const password = document.getElementById("signupPassword").value;
   const confirmPassword = document.getElementById("signupConfirmPassword").value;
+
+  if (password.length < 8) {
+    showToast("Password must be at least 8 characters long.");
+    return;
+  }
 
   if (password !== confirmPassword) {
     showToast("Password confirmation mismatch.");
     return;
   }
 
+  let signupPayload = {};
+
+  if (accountType === "PERSONAL") {
+    const firstName = document.getElementById("signupFirstName").value.trim();
+    const lastName = document.getElementById("signupLastName").value.trim();
+    const email = document.getElementById("signupEmail").value.trim();
+    const phone = document.getElementById("signupPhone").value.trim();
+    const country = document.getElementById("signupCountry").value.trim();
+    const occupation = document.getElementById("signupOccupation").value.trim();
+
+    if (!firstName || !lastName || !email) {
+      showToast("Please fill in all required personal fields.");
+      return;
+    }
+
+    signupPayload = {
+      account_type: "PERSONAL",
+      first_name: firstName,
+      last_name: lastName,
+      email: email,
+      phone: phone,
+      country: country,
+      occupation: occupation,
+      password: password
+    };
+  } else {
+    const companyName = document.getElementById("signupCompanyName").value.trim();
+    const businessReg = document.getElementById("signupBusinessReg").value.trim();
+    const taxNumber = document.getElementById("signupTaxNumber").value.trim();
+    const firstName = document.getElementById("signupContactFirstName").value.trim();
+    const lastName = document.getElementById("signupContactLastName").value.trim();
+    const email = document.getElementById("signupBusinessEmail").value.trim();
+    const phone = document.getElementById("signupCompanyPhone").value.trim();
+    const country = document.getElementById("signupCompanyCountry").value.trim();
+    const city = document.getElementById("signupCompanyCity").value.trim();
+    const address = document.getElementById("signupCompanyAddress").value.trim();
+
+    if (!companyName || !businessReg || !taxNumber || !firstName || !lastName || !email) {
+      showToast("Please fill in all required company fields.");
+      return;
+    }
+
+    signupPayload = {
+      account_type: "COMPANY",
+      company_name: companyName,
+      business_registration_number: businessReg,
+      tax_number: taxNumber,
+      first_name: firstName,
+      last_name: lastName,
+      email: email,
+      phone: phone,
+      country: country,
+      city: city,
+      address: address,
+      password: password
+    };
+  }
+
   try {
     const res = await fetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        first_name: firstName,
-        last_name: lastName,
-        company_name: companyName,
-        email: email,
-        phone: phone,
-        password: password
-      })
+      body: JSON.stringify(signupPayload)
     });
 
     const data = await res.json();
     if (res.ok) {
-      showToast("Registration successful! You can now log in.");
-      showAuthCard("loginCard");
+      localStorage.setItem("auth_token", data.access_token);
+      localStorage.setItem("user_first_name", data.user.first_name);
+      localStorage.setItem("user_last_name", data.user.last_name);
+      localStorage.setItem("user_email", data.user.email);
+      localStorage.setItem("user_role", data.role || data.user.role || "Auditor");
+      localStorage.setItem("user_account_type", data.user.account_type || "PERSONAL");
+      
+      showToast("Account created successfully");
+      checkAuthState();
     } else {
       showToast(data.detail || "Registration failed.");
     }
@@ -305,21 +514,48 @@ async function loadDashboardMetrics() {
     });
     if (res.ok) {
       const data = await res.json();
-      
-      document.getElementById("val-total").textContent = data.invoices_validated.toLocaleString();
-      document.getElementById("val-valid").textContent = data.valid_invoices.toLocaleString();
-      document.getElementById("val-flagged").textContent = data.flagged_invoices.toLocaleString();
-      document.getElementById("val-duplicates").textContent = data.duplicate_invoices.toLocaleString();
+      const isPersonal = localStorage.getItem("user_account_type") === "PERSONAL";
 
-      const successRate = data.invoices_validated > 0 
-        ? ((data.valid_invoices / data.invoices_validated) * 100).toFixed(1) 
-        : "0.0";
-      
-      const validContext = document.querySelector("#kpi-valid .kpi-context");
-      if (validContext) {
-        validContext.innerHTML = `<strong>${successRate}%</strong> success rate`;
+      const totalTitle = document.querySelector("#kpi-total .kpi-title");
+      const validTitle = document.querySelector("#kpi-valid .kpi-title");
+      const flaggedTitle = document.querySelector("#kpi-flagged .kpi-title");
+      const duplicatesTitle = document.querySelector("#kpi-duplicates .kpi-title");
+
+      if (isPersonal) {
+        if (totalTitle) totalTitle.textContent = "My Invoices";
+        if (validTitle) validTitle.textContent = "Pending Validation";
+        if (flaggedTitle) flaggedTitle.textContent = "Monthly Expenses";
+        if (duplicatesTitle) duplicatesTitle.textContent = "VAT Paid";
+
+        document.getElementById("val-total").textContent = data.invoices_validated.toLocaleString();
+        document.getElementById("val-valid").textContent = data.flagged_invoices.toLocaleString();
+        document.getElementById("val-flagged").textContent = `$${data.monthly_invoice_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        document.getElementById("val-duplicates").textContent = `$${data.vat_collected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+        document.querySelectorAll(".kpi-card .kpi-footer").forEach(el => el.style.display = "none");
+      } else {
+        if (totalTitle) totalTitle.textContent = "Total Invoices";
+        if (validTitle) validTitle.textContent = "Valid Invoices";
+        if (flaggedTitle) flaggedTitle.textContent = "Flagged Issues";
+        if (duplicatesTitle) duplicatesTitle.textContent = "Duplicates Detected";
+
+        document.getElementById("val-total").textContent = data.invoices_validated.toLocaleString();
+        document.getElementById("val-valid").textContent = data.valid_invoices.toLocaleString();
+        document.getElementById("val-flagged").textContent = data.flagged_invoices.toLocaleString();
+        document.getElementById("val-duplicates").textContent = data.duplicate_invoices.toLocaleString();
+
+        const successRate = data.invoices_validated > 0 
+          ? ((data.valid_invoices / data.invoices_validated) * 100).toFixed(1) 
+          : "0.0";
+        
+        const validContext = document.querySelector("#kpi-valid .kpi-context");
+        if (validContext) {
+          validContext.innerHTML = `<strong>${successRate}%</strong> success rate`;
+        }
+        
+        document.querySelectorAll(".kpi-card .kpi-footer").forEach(el => el.style.display = "flex");
       }
-      
+
       const taxProcessedText = document.querySelector("#view-reports .kpi-card:nth-child(2) .kpi-value");
       if (taxProcessedText) {
         taxProcessedText.textContent = `$${data.vat_collected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -403,10 +639,11 @@ async function loadAuditLogs() {
     });
     if (res.ok) {
       const logs = await res.json();
-      const stream = document.getElementById("reportsActivityStream");
-      if (stream) {
-        stream.innerHTML = "";
-        logs.slice(0, 5).forEach(log => {
+      if (Array.isArray(logs)) {
+        const stream = document.getElementById("reportsActivityStream");
+        if (stream) {
+          stream.innerHTML = "";
+          logs.slice(0, 5).forEach(log => {
           const div = document.createElement("div");
           div.className = "reports-stream-item";
           div.innerHTML = `
@@ -424,6 +661,7 @@ async function loadAuditLogs() {
         lucide.createIcons();
       }
     }
+  }
   } catch (err) {
     console.error("Failed to sync recent activity stream: ", err);
   }
@@ -947,11 +1185,11 @@ function initUploadMechanics() {
               progressPanel.style.display = "none";
               CURRENT_SIMULATED_INVOICE = mapApiInvoiceToLocal(apiInv);
               displayUploadResults();
-            }, 600);
-          }, 600);
-        }, 600);
-      }, 600);
-    }, 500);
+            }, 150);
+          }, 150);
+        }, 150);
+      }, 150);
+    }, 100);
   }
 
   const acceptBtn = document.getElementById("btnAcceptUpload");
@@ -1773,4 +2011,321 @@ function formatLogTime(dateStr) {
   if (diffHours < 24) return `${diffHours}h ago`;
   
   return formatDate(dateStr);
+}
+
+// Upgraded Signup Features for Single-Page HTML App
+function initLegacySignupUpgrade() {
+  let countriesList = [];
+  let selectedCountry = null;
+
+  // 1. Fetch country profiles
+  fetch(`${API_BASE_URL}/countries`)
+    .then(res => res.json())
+    .then(data => {
+      if (Array.isArray(data)) {
+        countriesList = data;
+        setupCountryDropdown("signupCountry", "signupCountryDropdown", "signupPhoneCode", "signupCountryTaxSummary");
+        setupCountryDropdown("signupCompanyCountry", "signupCompanyCountryDropdown", "signupCompanyPhoneCode", "signupCompanyCountryTaxSummary");
+      }
+    })
+    .catch(err => console.error("Error loading countries config:", err));
+
+  function setupCountryDropdown(inputId, dropdownId, phoneCodeId, taxSummaryId) {
+    const input = document.getElementById(inputId);
+    const dropdown = document.getElementById(dropdownId);
+    const phoneCodeSpan = document.getElementById(phoneCodeId);
+    const taxSummary = document.getElementById(taxSummaryId);
+
+    if (!input || !dropdown) return;
+
+    // Show dropdown on focus
+    input.addEventListener("focus", () => {
+      renderDropdown("");
+      dropdown.style.display = "block";
+    });
+
+    // Close dropdown on click outside
+    document.addEventListener("click", (e) => {
+      if (e.target !== input && !dropdown.contains(e.target)) {
+        dropdown.style.display = "none";
+      }
+    });
+
+    // Search input handler
+    input.addEventListener("input", () => {
+      renderDropdown(input.value);
+      dropdown.style.display = "block";
+    });
+
+    function renderDropdown(filterText) {
+      dropdown.innerHTML = "";
+      const filtered = countriesList.filter(c => 
+        c.name.toLowerCase().includes(filterText.toLowerCase())
+      );
+
+      if (filtered.length === 0) {
+        dropdown.innerHTML = `<div style="padding: 8px 12px; font-size: 13px; color: var(--text-muted);">No countries found</div>`;
+        return;
+      }
+
+      filtered.forEach(c => {
+        const item = document.createElement("div");
+        item.style.padding = "8px 12px";
+        item.style.cursor = "pointer";
+        item.style.fontSize = "13px";
+        item.style.borderBottom = "1px solid #f1f5f9";
+        item.className = "dropdown-item-c";
+        item.textContent = c.name;
+        
+        item.addEventListener("mouseenter", () => {
+          item.style.backgroundColor = "#f8fafc";
+        });
+        item.addEventListener("mouseleave", () => {
+          item.style.backgroundColor = "transparent";
+        });
+
+        item.addEventListener("click", () => {
+          input.value = c.name;
+          dropdown.style.display = "none";
+          selectedCountry = c;
+
+          // Auto country phone code prefix
+          if (c.phone_code && c.phone_code.prefix) {
+            phoneCodeSpan.textContent = c.phone_code.prefix;
+            phoneCodeSpan.style.display = "inline-flex";
+            phoneCodeSpan.style.alignItems = "center";
+          } else {
+            phoneCodeSpan.style.display = "none";
+          }
+
+          // Dynamic country tax compliance card summary
+          if (c.tax_config) {
+            taxSummary.innerHTML = `
+              <strong>Selected Country Tax Compliance Profile Summary:</strong><br>
+              • Tax System: ${c.tax_config.tax_system.code} (${c.tax_config.tax_system.name})<br>
+              • Default Rate: ${c.tax_config.default_rate ? c.tax_config.default_rate.rate + '%' : 'N/A'}<br>
+              • Tax Label: ${c.tax_config.tax_number_label}<br>
+              • Currency: ${c.tax_config.currency.code} (${c.tax_config.currency.symbol})
+            `;
+            taxSummary.style.display = "block";
+
+            // If it is company, update tax number field placeholder label dynamically
+            if (inputId === "signupCompanyCountry") {
+              const taxLabel = document.querySelector("label[for='signupTaxNumber']");
+              if (taxLabel) taxLabel.textContent = c.tax_config.tax_number_label;
+              const taxInput = document.getElementById("signupTaxNumber");
+              if (taxInput) taxInput.placeholder = `Enter your ${c.tax_config.tax_number_label}`;
+            }
+          } else {
+            taxSummary.style.display = "none";
+          }
+        });
+        dropdown.appendChild(item);
+      });
+    }
+  }
+
+  // 2. Password Show/Hide Toggles
+  setupPasswordToggle("toggleLoginPassword", "loginPassword");
+  setupPasswordToggle("toggleSignupPassword", "signupPassword");
+  setupPasswordToggle("toggleSignupConfirmPassword", "signupConfirmPassword");
+
+  function setupPasswordToggle(buttonId, inputId) {
+    const btn = document.getElementById(buttonId);
+    const input = document.getElementById(inputId);
+    if (!btn || !input) return;
+
+    btn.addEventListener("click", () => {
+      const isPass = input.type === "password";
+      input.type = isPass ? "text" : "password";
+      btn.innerHTML = `<i data-lucide="${isPass ? 'eye-off' : 'eye'}" style="width: 16px; height: 16px;"></i>`;
+      lucide.createIcons();
+    });
+  }
+
+  // 3. Live Password Strength indicator and checklists
+  const passInput = document.getElementById("signupPassword");
+  const confirmInput = document.getElementById("signupConfirmPassword");
+  const strengthContainer = document.getElementById("signupPassStrengthContainer");
+  const strengthBar = document.getElementById("signupPassStrengthBar");
+  const strengthLabel = document.getElementById("signupPassStrengthLabel");
+
+  if (passInput) {
+    passInput.addEventListener("input", () => {
+      const pw = passInput.value;
+      if (!pw) {
+        strengthContainer.style.display = "none";
+        return;
+      }
+
+      strengthContainer.style.display = "block";
+      const checks = {
+        length: pw.length >= 8,
+        upper: /[A-Z]/.test(pw),
+        lower: /[a-z]/.test(pw),
+        number: /[0-9]/.test(pw),
+        special: /[^A-Za-z0-9]/.test(pw)
+      };
+
+      // Style list indicators
+      toggleCrit("crit-length", checks.length);
+      toggleCrit("crit-upper", checks.upper);
+      toggleCrit("crit-lower", checks.lower);
+      toggleCrit("crit-number", checks.number);
+      toggleCrit("crit-special", checks.special);
+
+      const passed = Object.values(checks).filter(Boolean).length;
+      let scorePercent = (passed / 5) * 100;
+      strengthBar.style.width = `${scorePercent}%`;
+
+      if (passed <= 2) {
+        strengthBar.style.backgroundColor = "#ef4444";
+        strengthLabel.textContent = "Weak";
+        strengthLabel.style.color = "#ef4444";
+      } else if (passed <= 4) {
+        strengthBar.style.backgroundColor = "#f59e0b";
+        strengthLabel.textContent = "Fair";
+        strengthLabel.style.color = "#f59e0b";
+      } else {
+        strengthBar.style.backgroundColor = "#22c55e";
+        strengthLabel.textContent = "Strong";
+        strengthLabel.style.color = "#22c55e";
+      }
+    });
+  }
+
+  function toggleCrit(id, isValid) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.color = isValid ? "#22c55e" : "var(--text-muted)";
+    el.style.fontWeight = isValid ? "700" : "500";
+  }
+
+  // Override handleSignupSubmit to read country prefix code and display conflict dialog modal
+  const signupForm = document.getElementById("signupForm");
+  if (signupForm) {
+    signupForm.onsubmit = async (e) => {
+      e.preventDefault();
+      
+      const accountType = document.getElementById("signupAccountType").value;
+      const password = passInput.value;
+      const confirmPassword = confirmInput.value;
+
+      if (!selectedCountry) {
+        showToast("Please select a valid country from the search dropdown list.");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        showToast("Password confirmation mismatch.");
+        return;
+      }
+
+      const pwChecks = [
+        password.length >= 8,
+        /[A-Z]/.test(password),
+        /[a-z]/.test(password),
+        /[0-9]/.test(password),
+        /[^A-Za-z0-9]/.test(password)
+      ];
+      if (pwChecks.filter(Boolean).length < 5) {
+        showToast("Please meet all password strength safety requirements.");
+        return;
+      }
+
+      let payload = {};
+      if (accountType === "PERSONAL") {
+        const firstName = document.getElementById("signupFirstName").value.trim();
+        const lastName = document.getElementById("signupLastName").value.trim();
+        const email = document.getElementById("signupEmail").value.trim();
+        const phone = document.getElementById("signupPhone").value.trim();
+        const occupation = document.getElementById("signupOccupation").value.trim();
+        const profession = document.getElementById("signupProfession").value.trim();
+
+        if (!firstName || !lastName || !email) {
+          showToast("Please fill in all required personal fields.");
+          return;
+        }
+
+        const phoneCodeSpan = document.getElementById("signupPhoneCode");
+        const phonePrefix = phoneCodeSpan && phoneCodeSpan.style.display !== "none" ? phoneCodeSpan.textContent : "";
+        const fullPhone = phonePrefix && phone ? phonePrefix + phone.replace(/^\+/, '') : phone;
+
+        payload = {
+          account_type: "PERSONAL",
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+          phone: fullPhone || undefined,
+          country: selectedCountry.name,
+          country_code: selectedCountry.code,
+          occupation: occupation || undefined,
+          profession: profession || undefined,
+          password: password
+        };
+      } else {
+        const companyName = document.getElementById("signupCompanyName").value.trim();
+        const businessReg = document.getElementById("signupBusinessReg").value.trim();
+        const taxNumber = document.getElementById("signupTaxNumber").value.trim();
+        const firstName = document.getElementById("signupContactFirstName").value.trim();
+        const lastName = document.getElementById("signupContactLastName").value.trim();
+        const email = document.getElementById("signupBusinessEmail").value.trim();
+        const phone = document.getElementById("signupCompanyPhone").value.trim();
+        const city = document.getElementById("signupCompanyCity").value.trim();
+        const address = document.getElementById("signupCompanyAddress").value.trim();
+
+        if (!companyName || !businessReg || !taxNumber || !firstName || !lastName || !email) {
+          showToast("Please fill in all required company fields.");
+          return;
+        }
+
+        const phoneCodeSpan = document.getElementById("signupCompanyPhoneCode");
+        const phonePrefix = phoneCodeSpan && phoneCodeSpan.style.display !== "none" ? phoneCodeSpan.textContent : "";
+        const fullPhone = phonePrefix && phone ? phonePrefix + phone.replace(/^\+/, '') : phone;
+
+        payload = {
+          account_type: "COMPANY",
+          company_name: companyName,
+          business_registration_number: businessReg,
+          tax_number: taxNumber,
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+          phone: fullPhone || undefined,
+          country: selectedCountry.name,
+          country_code: selectedCountry.code,
+          city: city || undefined,
+          address: address || undefined,
+          password: password
+        };
+      }
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (res.status === 409) {
+          document.getElementById("conflictModal").style.display = "flex";
+        } else if (res.ok) {
+          localStorage.setItem("auth_token", data.access_token);
+          localStorage.setItem("user_first_name", data.user.first_name);
+          localStorage.setItem("user_last_name", data.user.last_name);
+          localStorage.setItem("user_email", data.user.email);
+          localStorage.setItem("user_role", data.role || data.user.role || "Auditor");
+          localStorage.setItem("user_account_type", data.user.account_type || "PERSONAL");
+          
+          showToast("Account created successfully");
+          checkAuthState();
+        } else {
+          showToast(data.detail || "Registration failed.");
+        }
+      } catch (err) {
+        showToast("Connection to authentication register server failed.");
+      }
+    };
+  }
 }

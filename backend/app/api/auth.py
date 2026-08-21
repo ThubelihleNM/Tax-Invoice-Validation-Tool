@@ -12,12 +12,28 @@ from app.models.users import User, UserRole, UserStatus
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 class RegisterRequest(BaseModel):
+    account_type: str = "PERSONAL"
     first_name: str
     last_name: str
-    company_name: Optional[str] = None
     email: EmailStr
     phone: Optional[str] = None
+    country_code: Optional[str] = None
     password: str = Field(..., min_length=8)
+    
+    # Personal specific
+    occupation: Optional[str] = None
+    profession: Optional[str] = None
+    
+    # Company specific
+    company_name: Optional[str] = None
+    business_registration_number: Optional[str] = None
+    tax_number: Optional[str] = None
+    
+    # Common location details
+    country: Optional[str] = None
+    city: Optional[str] = None
+    address: Optional[str] = None
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -64,8 +80,13 @@ def login(request: Request, data: LoginRequest, db: Session = Depends(get_db)):
         "access_token": access_token,
         "token_type": "bearer",
         "role": user.role.value,
-        "user": user
+        "user": user,
+        "refresh_token": user.refresh_token
     }
+
+@router.get("/me", response_model=UserResponse)
+def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
 def logout(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -123,45 +144,118 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == data.email).first()
     if existing:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email address already registered."
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This email address is already registered."
         )
     
+    # Conditional manual validation
+    if data.account_type == "COMPANY":
+        if not data.company_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Company name is required for company accounts."
+            )
+        if not data.business_registration_number:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Business registration number is required for company accounts."
+            )
+        if not data.tax_number:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Tax/VAT number is required for company accounts."
+            )
+            
     from app.authentication.jwt import get_password_hash
     hashed = get_password_hash(data.password)
     
+    import secrets
+    from datetime import datetime
+    
     new_user = User(
+        account_type=data.account_type,
         first_name=data.first_name,
         last_name=data.last_name,
         email=data.email,
         phone=data.phone,
+        country_code=data.country_code,
         password_hash=hashed,
-        company_name=data.company_name,
-        role=UserRole.ACCOUNTANT,
-        status=UserStatus.ACTIVE
+        company_name=data.company_name if data.account_type == "COMPANY" else None,
+        business_registration_number=data.business_registration_number if data.account_type == "COMPANY" else None,
+        tax_number=data.tax_number if data.account_type == "COMPANY" else None,
+        occupation=data.occupation if data.account_type == "PERSONAL" else None,
+        profession=data.profession if data.account_type == "PERSONAL" else None,
+        country=data.country,
+        city=data.city if data.account_type == "COMPANY" else None,
+        address=data.address if data.account_type == "COMPANY" else None,
+        role=UserRole.ACCOUNTANT if data.account_type == "PERSONAL" else UserRole.OWNER,
+        status=UserStatus.ACTIVE,
+        refresh_token=secrets.token_urlsafe(64),
+        session_status="Active",
+        last_login=datetime.utcnow()
     )
     db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
     
-    if data.company_name:
+    if data.account_type == "COMPANY":
+        from app.models.companies import Company
+        from app.models.countries import Country
+        
+        # Look up tax config for country
+        country_obj = db.query(Country).filter(Country.name == data.country).first()
+        tax_sys = "VAT"
+        curr = "USD"
+        if country_obj and country_obj.tax_config:
+            tax_sys = country_obj.tax_config.tax_system.code
+            curr = country_obj.tax_config.currency.code
+            
+        new_company = Company(
+            company_name=data.company_name or "My Company",
+            registration_number=data.business_registration_number or "N/A",
+            tax_number=data.tax_number or "N/A",
+            country=data.country or "US",
+            tax_system=tax_sys,
+            currency=curr,
+            phone=data.phone or "N/A",
+            email=data.email,
+            address=data.address or "N/A",
+            city=data.city or "N/A",
+            postal_code="N/A",
+            owner_id=new_user.id
+        )
+        db.add(new_company)
+        db.commit()
+        db.refresh(new_company)
+        
+        new_user.company_id = new_company.id
+        db.commit()
+        
         from app.models.settings import SystemSettings
         settings_rec = db.query(SystemSettings).first()
         if settings_rec:
             settings_rec.company_name = data.company_name
+            db.commit()
             
-    db.commit()
-    db.refresh(new_user)
-    
     from app.repositories.audit_repository import audit_repository
     audit_repository.create(
         db,
         user_id=new_user.id,
         action="USER_REGISTRATION",
-        description=f"Public signup completed for user: {new_user.email}"
+        description=f"Public signup completed for user: {new_user.email} (Type: {new_user.account_type})"
     )
     
-    return {"message": "Account registered successfully", "user": {
-        "id": new_user.id,
-        "first_name": new_user.first_name,
-        "last_name": new_user.last_name,
-        "email": new_user.email
-    }}
+    from app.authentication.jwt import create_access_token
+    access_token = create_access_token(
+        data={"sub": str(new_user.id), "role": new_user.role.value}
+    )
+    
+    return {
+        "message": "Account created successfully",
+        "access_token": access_token,
+        "token_type": "bearer",
+        "role": new_user.role.value,
+        "user": new_user,
+        "refresh_token": new_user.refresh_token
+    }
+

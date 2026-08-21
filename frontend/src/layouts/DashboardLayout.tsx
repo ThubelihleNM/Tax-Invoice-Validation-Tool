@@ -55,18 +55,74 @@ export const DashboardLayout: React.FC = () => {
 
   // Sidebar navigation menu options filtered by role permissions
   const menuItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} />, roles: ['Administrator', 'Accountant', 'Auditor'] },
-    { path: '/upload', label: 'Upload Invoice', icon: <UploadCloud size={20} />, roles: ['Administrator', 'Accountant'] },
-    { path: '/history', label: 'Invoice History', icon: <History size={20} />, roles: ['Administrator', 'Accountant'] },
-    { path: '/validation', label: 'Validation Results', icon: <CheckSquare size={20} />, roles: ['Administrator', 'Accountant', 'Auditor'] },
-    { path: '/fraud', label: 'Fraud Detection', icon: <ShieldAlert size={20} />, roles: ['Administrator'] },
-    { path: '/reports', label: 'Reports', icon: <FileBarChart size={20} />, roles: ['Administrator', 'Accountant', 'Auditor'] },
-    { path: '/analytics', label: 'Analytics', icon: <BarChart3 size={20} />, roles: ['Administrator', 'Accountant', 'Auditor'] },
-    { path: '/users', label: 'User Management', icon: <Users size={20} />, roles: ['Administrator'] },
-    { path: '/settings', label: 'Settings', icon: <Settings size={20} />, roles: ['Administrator'] },
+    { 
+      path: user.account_type === 'PERSONAL' ? '/personal-dashboard' : '/company-dashboard', 
+      label: 'Dashboard', 
+      icon: <LayoutDashboard size={20} />, 
+      roles: ['Administrator', 'Accountant', 'Auditor'],
+      accountTypes: ['PERSONAL', 'COMPANY']
+    },
+    { 
+      path: '/upload', 
+      label: 'Upload Invoice', 
+      icon: <UploadCloud size={20} />, 
+      roles: ['Administrator', 'Accountant'],
+      accountTypes: ['PERSONAL', 'COMPANY']
+    },
+    { 
+      path: '/history', 
+      label: 'Invoice History', 
+      icon: <History size={20} />, 
+      roles: ['Administrator', 'Accountant'],
+      accountTypes: ['COMPANY']
+    },
+    { 
+      path: '/validation', 
+      label: 'Validation Results', 
+      icon: <CheckSquare size={20} />, 
+      roles: ['Administrator', 'Accountant', 'Auditor'],
+      accountTypes: ['PERSONAL', 'COMPANY']
+    },
+    { 
+      path: '/fraud', 
+      label: 'Fraud Detection', 
+      icon: <ShieldAlert size={20} />, 
+      roles: ['Administrator'],
+      accountTypes: ['COMPANY']
+    },
+    { 
+      path: '/reports', 
+      label: 'Reports', 
+      icon: <FileBarChart size={20} />, 
+      roles: ['Administrator', 'Accountant', 'Auditor'],
+      accountTypes: ['PERSONAL', 'COMPANY']
+    },
+    { 
+      path: '/analytics', 
+      label: 'Analytics', 
+      icon: <BarChart3 size={20} />, 
+      roles: ['Administrator', 'Accountant', 'Auditor'],
+      accountTypes: ['COMPANY']
+    },
+    { 
+      path: '/users', 
+      label: 'User Management', 
+      icon: <Users size={20} />, 
+      roles: ['Administrator'],
+      accountTypes: ['COMPANY']
+    },
+    { 
+      path: '/settings', 
+      label: 'Settings', 
+      icon: <Settings size={20} />, 
+      roles: ['Administrator'],
+      accountTypes: ['COMPANY']
+    },
   ];
 
-  const allowedMenuItems = menuItems.filter(item => item.roles.includes(role));
+  const allowedMenuItems = menuItems.filter(item => 
+    item.roles.includes(role) && item.accountTypes.includes(user.account_type)
+  );
 
   const handleLogout = async () => {
     await logout();

@@ -21,6 +21,9 @@ interface SummaryData {
   flagged_invoices: number;
   rejected_invoices: number;
   total_tax_amount: number;
+  monthly_invoice_value?: number;
+  invoices_validated?: number;
+  vat_collected?: number;
 }
 
 export const Dashboard: React.FC = () => {
@@ -28,20 +31,35 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
 
   const fetchSummary = async () => {
     setIsLoading(true);
     try {
       const res = await axios.get('/api/analytics/summary');
-      setSummary(res.data);
-    } catch (err) {
-      toast('warning', 'Notice', 'Failed to retrieve analytics, showing fallback metrics.');
+      const data = res.data;
       setSummary({
-        total_invoices: 128,
-        validated_invoices: 114,
-        flagged_invoices: 11,
-        rejected_invoices: 3,
-        total_tax_amount: 25482.50
+        total_invoices: data.invoices_validated || 0,
+        validated_invoices: data.valid_invoices || 0,
+        flagged_invoices: data.flagged_invoices || 0,
+        rejected_invoices: data.invalid_invoices || 0,
+        total_tax_amount: data.vat_collected || 0,
+        monthly_invoice_value: data.monthly_invoice_value || 0,
+        invoices_validated: data.invoices_validated || 0,
+        vat_collected: data.vat_collected || 0
+      });
+    } catch (err) {
+      toast('warning', 'Notice', 'Failed to retrieve analytics.');
+      setSummary({
+        total_invoices: 0,
+        validated_invoices: 0,
+        flagged_invoices: 0,
+        rejected_invoices: 0,
+        total_tax_amount: 0,
+        monthly_invoice_value: 0,
+        invoices_validated: 0,
+        vat_collected: 0
       });
     }
 
@@ -58,12 +76,14 @@ export const Dashboard: React.FC = () => {
       }));
       setRecentInvoices(formatted);
     } catch (err) {
-      setRecentInvoices([
-        { id: 'INV-2026-0482', supplier: 'Figma Europe', date: '2026-07-24', total: 1452.00, status: 'Validated', risk: 'Low' },
-        { id: 'INV-2026-0481', supplier: 'GitHub, Inc.', date: '2026-07-23', total: 600.00, status: 'Validated', risk: 'Low' },
-        { id: 'INV-2026-0480', supplier: 'Google Cloud EMEA', date: '2026-07-22', total: 1000.00, status: 'Flagged', risk: 'Medium' },
-        { id: 'INV-2026-0479', supplier: 'AWS Billing', date: '2026-07-20', total: 3200.00, status: 'Rejected', risk: 'High' }
-      ]);
+      setRecentInvoices([]);
+    }
+
+    try {
+      const resCharts = await axios.get('/api/analytics/charts');
+      setChartData(resCharts.data.daily_validation_trend || []);
+    } catch (err) {
+      setChartData([]);
     } finally {
       setIsLoading(false);
     }
@@ -73,23 +93,193 @@ export const Dashboard: React.FC = () => {
     fetchSummary();
   }, []);
 
-  const chartData = [
-    { name: 'Mon', validated: 12, flagged: 1, rejected: 0 },
-    { name: 'Tue', validated: 18, flagged: 2, rejected: 1 },
-    { name: 'Wed', validated: 15, flagged: 1, rejected: 0 },
-    { name: 'Thu', validated: 22, flagged: 3, rejected: 1 },
-    { name: 'Fri', validated: 20, flagged: 1, rejected: 0 },
-    { name: 'Sat', validated: 14, flagged: 2, rejected: 1 },
-    { name: 'Sun', validated: 13, flagged: 1, rejected: 0 }
-  ];
-
   const pieData = [
-    { name: 'Valid', value: summary?.validated_invoices || 114, color: '#22C55E' },
-    { name: 'Flagged', value: summary?.flagged_invoices || 11, color: '#F59E0B' },
-    { name: 'Rejected', value: summary?.rejected_invoices || 3, color: '#EF4444' }
+    { name: 'Valid', value: summary?.validated_invoices || 0, color: '#22C55E' },
+    { name: 'Flagged', value: summary?.flagged_invoices || 0, color: '#F59E0B' },
+    { name: 'Rejected', value: summary?.rejected_invoices || 0, color: '#EF4444' }
   ];
 
-  const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
+  if (user?.account_type === 'PERSONAL') {
+    return (
+      <div className="space-y-6">
+        
+        {/* Welcome Banner */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">
+              Welcome, {user?.first_name || 'User'}
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Here is your personal expense and invoice validation overview.
+            </p>
+          </div>
+          
+          <Button 
+            onClick={() => navigate('/upload')} 
+            className="flex items-center gap-1.5 self-start sm:self-auto shadow-md shadow-primary/10"
+          >
+            <Plus size={16} />
+            <span>Upload Invoice</span>
+          </Button>
+        </div>
+
+        {/* KPI statistics grid panels */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="p-5 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">My Invoices</p>
+              <h3 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100">{summary?.invoices_validated || '0'}</h3>
+            </div>
+            <div className="h-10 w-10 bg-primary/10 text-primary border border-primary/20 rounded-xl flex items-center justify-center">
+              <FileText size={20} />
+            </div>
+          </Card>
+
+          <Card className="p-5 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pending Validation</p>
+              <h3 className="text-2xl font-extrabold text-warning-dark dark:text-warning-light">{summary?.flagged_invoices || '0'}</h3>
+            </div>
+            <div className="h-10 w-10 bg-warning/10 text-warning border border-warning/20 rounded-xl flex items-center justify-center">
+              <AlertCircle size={20} />
+            </div>
+          </Card>
+
+          <Card className="p-5 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Monthly Expenses</p>
+              <h3 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100">${summary?.monthly_invoice_value?.toFixed(2) || '0.00'}</h3>
+            </div>
+            <div className="h-10 w-10 bg-success/10 text-success border border-success/20 rounded-xl flex items-center justify-center">
+              <TrendingUp size={20} />
+            </div>
+          </Card>
+
+          <Card className="p-5 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">VAT Paid</p>
+              <h3 className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">${summary?.vat_collected?.toFixed(2) || '0.00'}</h3>
+            </div>
+            <div className="h-10 w-10 bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 rounded-xl flex items-center justify-center">
+              <ShieldCheck size={20} />
+            </div>
+          </Card>
+        </div>
+
+        {/* Quick Actions Panel */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <button 
+            onClick={() => navigate('/upload')} 
+            className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm text-center space-y-2 hover:border-primary hover:shadow-md transition-all group"
+          >
+            <Plus className="mx-auto text-primary group-hover:scale-110 transition-transform animate-pulse" size={24} />
+            <span className="block font-bold text-sm text-slate-800 dark:text-slate-100">Upload Invoice</span>
+          </button>
+          <button 
+            onClick={() => navigate('/upload')} 
+            className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm text-center space-y-2 hover:border-primary hover:shadow-md transition-all group"
+          >
+            <Plus className="mx-auto text-primary group-hover:scale-110 transition-transform" size={24} />
+            <span className="block font-bold text-sm text-slate-800 dark:text-slate-100">Scan Receipt</span>
+          </button>
+          <button 
+            onClick={() => navigate('/validation')} 
+            className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm text-center space-y-2 hover:border-primary hover:shadow-md transition-all group"
+          >
+            <FileText className="mx-auto text-primary group-hover:scale-110 transition-transform" size={24} />
+            <span className="block font-bold text-sm text-slate-800 dark:text-slate-100">View History</span>
+          </button>
+          <button 
+            onClick={() => navigate('/reports')} 
+            className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm text-center space-y-2 hover:border-primary hover:shadow-md transition-all group"
+          >
+            <FileText className="mx-auto text-primary group-hover:scale-110 transition-transform" size={24} />
+            <span className="block font-bold text-sm text-slate-800 dark:text-slate-100">Download Report</span>
+          </button>
+        </div>
+
+        {/* Dynamic Charts and Recent validations */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Trend Area chart panel */}
+          <Card className="lg:col-span-6">
+            <CardHeader className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-850 dark:text-slate-105">Personal Expenses Trend</h3>
+                <p className="text-[10px] text-slate-400">Weekly analysis of your validated invoice amounts.</p>
+              </div>
+              <TrendingUp size={16} className="text-slate-400" />
+            </CardHeader>
+            <CardContent className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorValPersonal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2563EB" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#2563EB" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-800" />
+                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
+                  <YAxis stroke="#94a3b8" fontSize={11} />
+                  <Tooltip />
+                  <Area type="monotone" dataKey="validated" stroke="#2563EB" fillOpacity={1} fill="url(#colorValPersonal)" strokeWidth={2} name="Invoices" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Recent Validations */}
+          <Card className="lg:col-span-6">
+            <CardHeader className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-850 dark:text-slate-105">My Recent Invoices</h3>
+                <p className="text-[10px] text-slate-400">The last processed expenses logs.</p>
+              </div>
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => navigate('/validation')}>
+                View All
+              </Button>
+            </CardHeader>
+            <CardContent className="overflow-x-auto p-0">
+              <table className="w-full text-left text-xs divide-y divide-slate-150 dark:divide-slate-800">
+                <thead className="bg-slate-50/50 dark:bg-slate-950/20 text-slate-550 dark:text-slate-450 uppercase font-semibold text-[10px] tracking-wider">
+                  <tr>
+                    <th className="px-4 py-3">Invoice</th>
+                    <th className="px-4 py-3">Vendor</th>
+                    <th className="px-4 py-3">Total</th>
+                    <th className="px-4 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-600 dark:text-slate-400 font-medium">
+                  {recentInvoices.slice(0, 4).map((inv, idx) => (
+                    <tr 
+                      key={inv.invoice_id || inv.id || idx} 
+                      onClick={() => navigate(inv.invoice_id ? `/validation?id=${inv.invoice_id}` : '/validation')}
+                      className="hover:bg-slate-50/20 dark:hover:bg-slate-950/5 transition-colors cursor-pointer"
+                    >
+                      <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">{inv.id}</td>
+                      <td className="px-4 py-3">{inv.supplier}</td>
+                      <td className="px-4 py-3 font-bold">${inv.total.toFixed(2)}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={inv.status === 'Validated' ? 'success' : inv.status === 'Flagged' ? 'warning' : 'danger'}>
+                          {inv.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                  {recentInvoices.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="text-center py-6 text-slate-400">No invoices uploaded yet.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </div>
+
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

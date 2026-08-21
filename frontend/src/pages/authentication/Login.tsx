@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { toast } from '../../components/common/Toast';
-import { FileText, Shield, Sparkles, CheckCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Shield, CheckCircle } from 'lucide-react';
 
 interface LoginFormInputs {
   email: string;
@@ -14,13 +13,30 @@ interface LoginFormInputs {
   rememberMe: boolean;
 }
 
+interface SignupFormInputs {
+  firstName: string;
+  lastName: string;
+  companyName: string;
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
+  agreeTerms: boolean;
+}
+
 export const Login: React.FC = () => {
-  const { login } = useAuth();
+  const { login, register: apiRegister } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isRegister, setIsRegister] = useState(false);
+  const [isLoginLoading, setIsLoginLoading] = useState(false);
+  const [isSignupLoading, setIsSignupLoading] = useState(false);
 
-  const { register, handleSubmit, formState: { errors, isValid } } = useForm<LoginFormInputs>({
+  const {
+    register: registerLogin,
+    handleSubmit: handleSubmitLogin,
+    formState: { errors: loginErrors, isValid: isLoginValid }
+  } = useForm<LoginFormInputs>({
     mode: 'onChange',
     defaultValues: {
       email: '',
@@ -29,6 +45,27 @@ export const Login: React.FC = () => {
     }
   });
 
+  const {
+    register: registerSignup,
+    handleSubmit: handleSubmitSignup,
+    watch: watchSignup,
+    formState: { errors: signupErrors, isValid: isSignupValid }
+  } = useForm<SignupFormInputs>({
+    mode: 'onChange',
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      companyName: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
+      agreeTerms: false
+    }
+  });
+
+  const watchSignupPassword = watchSignup('password');
+
   // Display session expiry notice if navigated from timeout redirect
   React.useEffect(() => {
     if (searchParams.get('expired')) {
@@ -36,8 +73,8 @@ export const Login: React.FC = () => {
     }
   }, [searchParams]);
 
-  const onSubmit = async (data: LoginFormInputs) => {
-    setIsLoading(true);
+  const onSubmitLogin = async (data: LoginFormInputs) => {
+    setIsLoginLoading(true);
     try {
       await login(data.email, data.password, data.rememberMe);
       toast('success', 'Welcome Back', 'Successfully logged in to your account.');
@@ -46,7 +83,28 @@ export const Login: React.FC = () => {
       const msg = err.response?.data?.detail || 'Invalid email or password. Please try again.';
       toast('danger', 'Authentication Failed', msg);
     } finally {
-      setIsLoading(false);
+      setIsLoginLoading(false);
+    }
+  };
+
+  const onSubmitSignup = async (data: SignupFormInputs) => {
+    setIsSignupLoading(true);
+    try {
+      await apiRegister({
+        first_name: data.firstName,
+        last_name: data.lastName,
+        company_name: data.companyName,
+        email: data.email,
+        phone: data.phone,
+        password: data.password
+      });
+      toast('success', 'Account Created', 'Account created successfully');
+      navigate('/dashboard');
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || 'Registration failed. Please try again.';
+      toast('danger', 'Registration Failed', msg);
+    } finally {
+      setIsSignupLoading(false);
     }
   };
 
@@ -129,91 +187,104 @@ export const Login: React.FC = () => {
       {/* ================= RIGHT SIDE: MODERN GLASSMORPHISM CARD ================= */}
       <div className="col-span-1 md:col-span-7 flex flex-col justify-center p-8 sm:p-12 md:p-16 bg-white dark:bg-slate-900 transition-colors duration-200">
         <div className="max-w-md w-full mx-auto space-y-8">
-          <div className="space-y-2">
-            <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Welcome back</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Please enter your credentials to access your validation dashboard.
-            </p>
-          </div>
+          
+          {!isRegister ? (
+            <>
+              {/* LOGIN CARD */}
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Welcome back</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Please enter your credentials to access your validation dashboard.
+                </p>
+              </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            
-            {/* Email Field */}
-            <Input
-              label="Email Address"
-              type="email"
-              placeholder="name@enterprise.com"
-              error={errors.email?.message}
-              {...register('email', {
-                required: 'Email address is required',
-                pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, // simple fix regex
-                  message: 'Please enter a valid email address'
-                }
-              })}
-            />
-
-            {/* Password Field */}
-            <div className="space-y-1">
-              <Input
-                label="Password"
-                type="password"
-                placeholder="••••••••"
-                error={errors.password?.message}
-                {...register('password', {
-                  required: 'Password is required'
-                })}
-              />
-            </div>
-
-            {/* Remember Me and Forgot Password */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 select-none cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="rounded border-slate-350 text-primary focus:ring-primary h-4 w-4 bg-transparent dark:border-slate-700"
-                  {...register('rememberMe')}
+              <form onSubmit={handleSubmitLogin(onSubmitLogin)} className="space-y-6">
+                {/* Email Field */}
+                <Input
+                  label="Email Address"
+                  type="email"
+                  placeholder="you@gmail.com or name@company.com"
+                  error={loginErrors.email?.message}
+                  {...registerLogin('email', {
+                    required: 'Email address is required',
+                    pattern: {
+                      value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+                      message: 'Please enter a valid email address'
+                    }
+                  })}
                 />
-                <span className="text-xs text-slate-650 text-slate-650 dark:text-slate-400 font-medium">Remember me</span>
-              </label>
-              
-              <button
-                type="button"
-                onClick={() => navigate('/forgot-password')}
-                className="text-xs text-primary font-semibold hover:underline"
-              >
-                Forgot password?
-              </button>
-            </div>
 
-            {/* Login button */}
-            <Button
-              type="submit"
-              className="w-full py-2.5 shadow-lg shadow-primary/10"
-              isLoading={isLoading}
-              disabled={!isValid}
-            >
-              Sign In
-            </Button>
-          </form>
+                {/* Password Field */}
+                <Input
+                  label="Password"
+                  type="password"
+                  placeholder="••••••••"
+                  error={loginErrors.password?.message}
+                  {...registerLogin('password', {
+                    required: 'Password is required'
+                  })}
+                />
 
-          {/* Test Credentials Sandbox guide */}
-          <div className="bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800 rounded-xl p-4 space-y-2">
-            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Sandbox Test Users:</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-slate-500 dark:text-slate-400">
-              <div>
-                <p className="font-semibold text-slate-700 dark:text-slate-300">Admin Account</p>
-                <p>Email: admin@enterprise.com</p>
-                <p>Pass: Admin@123</p>
+                {/* Remember Me and Forgot Password */}
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 select-none cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="rounded border-slate-350 text-primary focus:ring-primary h-4 w-4 bg-transparent dark:border-slate-700"
+                      {...registerLogin('rememberMe')}
+                    />
+                    <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">Remember me</span>
+                  </label>
+                  
+                  <button
+                    type="button"
+                    onClick={() => navigate('/forgot-password')}
+                    className="text-xs text-primary font-semibold hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+
+                {/* Login button */}
+                <Button
+                  type="submit"
+                  className="w-full py-2.5 shadow-lg shadow-primary/10"
+                  isLoading={isLoginLoading}
+                  disabled={!isLoginValid}
+                >
+                  Sign In
+                </Button>
+              </form>
+
+              <div className="auth-footer text-center text-sm text-slate-500 dark:text-slate-400 pt-2">
+                Don't have an account?{' '}
+                <Link
+                  to="/register"
+                  className="text-primary font-semibold hover:underline bg-transparent border-none cursor-pointer"
+                >
+                  Create free account
+                </Link>
               </div>
-              <div>
-                <p className="font-semibold text-slate-700 dark:text-slate-300">Accountant Account</p>
-                <p>Email: accountant@enterprise.com</p>
-                <p>Pass: Accountant@123</p>
+
+              {/* Test Credentials Sandbox guide */}
+              <div className="bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800 rounded-xl p-4 space-y-2">
+                <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Sandbox Test Users:</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] text-slate-500 dark:text-slate-400">
+                  <div>
+                    <p className="font-semibold text-slate-700 dark:text-slate-300">Admin Account</p>
+                    <p>Email: admin@enterprise.com</p>
+                    <p>Pass: Admin@123</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-700 dark:text-slate-300">Accountant Account</p>
+                    <p>Email: accountant@enterprise.com</p>
+                    <p>Pass: Accountant@123</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
+
         </div>
       </div>
     </>

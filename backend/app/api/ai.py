@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from app.database.connection import get_db
 from app.authentication.jwt import require_any_role, require_accountant_or_admin
-from app.models.users import User
+from app.models.users import User, UserRole
 from app.models.invoices import Invoice, InvoiceStatus, RiskLevel
 from app.models.validation import ValidationResult, ValidationStatus
 from app.models.suppliers import Supplier
@@ -15,6 +15,17 @@ from app.models.ai import AIConversation, AIMessage, FavoritePrompt, AIInsight
 from app.repositories.audit_repository import audit_repository
 
 router = APIRouter(prefix="/ai", tags=["AI Assistant"])
+
+def get_scoped_invoice_query(db: Session, user: User):
+    query = db.query(Invoice)
+    if user.role == UserRole.ADMINISTRATOR:
+        if user.company_id:
+            query = query.filter(Invoice.company_id == user.company_id)
+    elif user.account_type == "PERSONAL":
+        query = query.filter(Invoice.uploaded_by == user.id)
+    elif user.account_type == "COMPANY":
+        query = query.filter(Invoice.company_id == user.company_id)
+    return query
 
 class AskRequest(BaseModel):
     prompt: str
@@ -62,9 +73,9 @@ def ask_ai_assistant(
         # Find specified or last failed invoice
         inv = None
         if req.invoice_id:
-            inv = db.query(Invoice).filter(Invoice.invoice_id == req.invoice_id).first()
+            inv = get_scoped_invoice_query(db, current_user).filter(Invoice.invoice_id == req.invoice_id).first()
         else:
-            inv = db.query(Invoice).filter(Invoice.invoice_status == InvoiceStatus.REJECTED).order_by(Invoice.invoice_id.desc()).first()
+            inv = get_scoped_invoice_query(db, current_user).filter(Invoice.invoice_status == InvoiceStatus.REJECTED).order_by(Invoice.invoice_id.desc()).first()
 
         if inv:
             val = db.query(ValidationResult).filter(ValidationResult.invoice_id == inv.invoice_id).first()
@@ -104,7 +115,7 @@ def ask_ai_assistant(
 
     # Match: "show duplicate invoices" or "duplicates"
     elif "duplicate" in prompt:
-        dups = db.query(Invoice).join(ValidationResult).filter(ValidationResult.duplicate_status.like("Duplicate%")).limit(5).all()
+        dups = get_scoped_invoice_query(db, current_user).join(ValidationResult).filter(ValidationResult.duplicate_status.like("Duplicate%")).limit(5).all()
         if dups:
             dup_list = "\n".join([f"- Invoice **{d.invoice_number}** (Supplier: {d.supplier.supplier_name if d.supplier else 'N/A'})" for d in dups])
             ai_response = f"I discovered the following duplicated invoice numbers in database records:\n\n{dup_list}"
@@ -113,7 +124,7 @@ def ask_ai_assistant(
 
     # Match: "high fraud risk" or "risk score"
     elif "risk" in prompt or "fraud" in prompt:
-        high_risk = db.query(Invoice).join(ValidationResult).filter(ValidationResult.risk_score > 50).limit(5).all()
+        high_risk = get_scoped_invoice_query(db, current_user).join(ValidationResult).filter(ValidationResult.risk_score > 50).limit(5).all()
         if high_risk:
             risk_list = "\n".join([f"- Invoice **{d.invoice_number}** (Supplier: {d.supplier.supplier_name if d.supplier else 'N/A'}, Risk score: {d.validation_result[0].risk_score if d.validation_result else 75})" for d in high_risk])
             ai_response = f"Here are the processed invoices flagged with high audit risk scores:\n\n{risk_list}"
@@ -122,9 +133,9 @@ def ask_ai_assistant(
 
     # Match: "summarize today" or "how many invoices processed"
     elif "summarize today" in prompt or "invoices processed today" in prompt:
-        total = db.query(Invoice).count()
-        validated = db.query(Invoice).filter(Invoice.invoice_status == InvoiceStatus.VALIDATED).count()
-        rejected = db.query(Invoice).filter(Invoice.invoice_status == InvoiceStatus.REJECTED).count()
+        total = get_scoped_invoice_query(db, current_user).count()
+        validated = get_scoped_invoice_query(db, current_user).filter(Invoice.invoice_status == InvoiceStatus.VALIDATED).count()
+        rejected = get_scoped_invoice_query(db, current_user).filter(Invoice.invoice_status == InvoiceStatus.REJECTED).count()
         ai_response = (
             f"Today, **{total}** invoices were uploaded and processed through the OCR scanner.\n\n"
             f"- **{validated}** passed compliance checks and were archived.\n"

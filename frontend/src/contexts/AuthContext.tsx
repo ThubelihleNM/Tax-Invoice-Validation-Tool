@@ -12,6 +12,14 @@ export interface User {
   profile_photo?: string;
   created_at: string;
   updated_at: string;
+  account_type: 'PERSONAL' | 'COMPANY';
+  business_registration_number?: string;
+  tax_number?: string;
+  occupation?: string;
+  company_name?: string;
+  country?: string;
+  city?: string;
+  address?: string;
 }
 
 interface AuthContextType {
@@ -20,6 +28,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string, rememberMe: boolean) => Promise<void>;
   logout: () => Promise<void>;
+  register: (fields: any) => Promise<void>;
   updateUser: (updatedUser: User) => void;
   showSessionWarning: boolean;
   setShowSessionWarning: (show: boolean) => void;
@@ -176,7 +185,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (savedToken) {
         try {
           axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
-          const res = await axios.get('/api/users/profile');
+          const res = await axios.get('/api/auth/me');
           setUser(res.data);
           setToken(savedToken);
         } catch (err) {
@@ -194,13 +203,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string, rememberMe: boolean) => {
     const res = await axios.post('/api/auth/login', { email, password, remember_me: rememberMe });
-    const { access_token, role, user: userData } = res.data;
+    const { access_token, role, user: userData, refresh_token: rToken } = res.data;
     
-    // We get refresh_token in response when logging in
-    const rToken = res.data.user.refresh_token; 
-    // In our backend implementation, user record has refresh_token which we read or get from backend
-    // Since uvicorn returns token, let's extract it:
-    const tempRefresh = res.data.user.refresh_token || 'dummy-refresh';
+    const tempRefresh = rToken || res.data.user.refresh_token || 'dummy-refresh';
     
     if (rememberMe) {
       localStorage.setItem('access_token', access_token);
@@ -212,6 +217,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setToken(access_token);
     setUser(userData);
+  };
+
+  const register = async (fields: any) => {
+    await axios.post('/api/auth/register', fields);
   };
 
   const logout = async () => {
@@ -244,6 +253,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         login,
         logout,
+        register,
         updateUser,
         showSessionWarning,
         setShowSessionWarning,

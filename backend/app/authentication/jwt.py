@@ -92,5 +92,5 @@ class RoleChecker:
 
 # Pre-defined dependencies for endpoints
 require_admin = RoleChecker([UserRole.ADMINISTRATOR])
-require_accountant_or_admin = RoleChecker([UserRole.ADMINISTRATOR, UserRole.ACCOUNTANT])
-require_any_role = RoleChecker([UserRole.ADMINISTRATOR, UserRole.ACCOUNTANT, UserRole.AUDITOR])
+require_accountant_or_admin = RoleChecker([UserRole.ADMINISTRATOR, UserRole.OWNER, UserRole.ACCOUNTANT])
+require_any_role = RoleChecker([UserRole.ADMINISTRATOR, UserRole.OWNER, UserRole.ACCOUNTANT, UserRole.AUDITOR, UserRole.VIEWER])

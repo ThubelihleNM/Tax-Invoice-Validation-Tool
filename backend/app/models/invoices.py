@@ -40,6 +40,7 @@ class Invoice(Base):
     ocr_status = Column(Enum(OcrStatus), default=OcrStatus.PENDING, nullable=False)
     file_path = Column(String(255), nullable=True)
     uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="SET NULL"), nullable=True)
     
     # OCR Data and performance metrics (Module 4)
     ocr_text = Column(Text, nullable=True)
