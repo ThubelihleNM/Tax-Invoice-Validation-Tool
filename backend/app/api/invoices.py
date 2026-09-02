@@ -52,7 +52,8 @@ class SaveInvoiceRequest(BaseModel):
     subtotal: decimal.Decimal
     vat_percentage: decimal.Decimal
     vat_amount: decimal.Decimal
-    discount: decimal.Decimal
+    discount: decimal.Decimal = decimal.Decimal("0.00")
+    shipping_cost: decimal.Decimal = decimal.Decimal("0.00")
     total_amount: decimal.Decimal
     payment_method: Optional[str] = None
     reference_number: Optional[str] = None
@@ -124,7 +125,7 @@ def get_invoice_details(
     check_invoice_access(current_user, invoice)
     return invoice
 
-@router.post("/upload", status_code=status.HTTP_201_CREATED)
+@router.post("/upload", response_model=InvoiceResponse, status_code=status.HTTP_201_CREATED)
 async def upload_invoice(
     request: Request,
     file: UploadFile = File(...),
@@ -213,7 +214,7 @@ async def upload_invoice(
         supplier = Supplier(
             supplier_name=fields.get("supplier_name", "Unknown Supplier"),
             tax_number=fields.get("supplier_tax_number") or f"TEMP-{uuid.uuid4().hex[:8].upper()}",
-            email=fields.get("supplier_email"),
+            email=fields.get("supplier_email") or None,
             phone=fields.get("supplier_phone"),
             address=fields.get("supplier_address"),
             status=SupplierStatus.ACTIVE
@@ -375,14 +376,30 @@ def save_invoice_edits(
         if data.customer_address:
             invoice.customer.address = data.customer_address
 
+    # Update shipping cost in extracted_json
+    if invoice.extracted_json and isinstance(invoice.extracted_json, dict):
+        curr_json = dict(invoice.extracted_json)
+        curr_json["shipping_cost"] = float(data.shipping_cost)
+        invoice.extracted_json = curr_json
+
     db.commit()
     db.refresh(invoice)
+
+    # Re-run validation rules engine with updated fields
+    try:
+        from app.services.validation_service import validation_service
+        from app.services.report_service import report_service
+        validation_service.run_validation(db, invoice.invoice_id)
+        report_service.generate_validation_pdf(db, invoice.invoice_id)
+        db.refresh(invoice)
+    except Exception as val_err:
+        print(f"Revalidation error: {val_err}")
 
     audit_repository.create(
         db,
         user_id=current_user.id,
         action="INVOICE_MODIFIED",
-        description=f"Manually updated details for invoice: {invoice.invoice_number}"
+        description=f"Manually updated details and revalidated invoice: {invoice.invoice_number}"
     )
 
     return invoice

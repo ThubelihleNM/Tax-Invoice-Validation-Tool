@@ -285,51 +285,51 @@
               </div>
               <div class="section-body"
                 style="display: flex; flex-direction: column; justify-content: center; gap: 24px;">
-                <!-- Modern Visual SVG Pie / Donut -->
+                <!-- Modern Dynamic SVG Pie / Donut -->
                 <div style="display: flex; justify-content: center;">
                   <svg width="140" height="140" viewBox="0 0 42 42">
                     <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#f1f5f9" stroke-width="4.5"></circle>
-                    <!-- Valid (94.5%) - green -->
-                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--success)" stroke-width="4.5"
-                      stroke-dasharray="94.5 5.5" stroke-dashoffset="25"></circle>
-                    <!-- Flagged (4.2%) - warning -->
-                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--warning)" stroke-width="4.5"
-                      stroke-dasharray="4.2 95.8" stroke-dashoffset="30.5"></circle>
-                    <!-- Duplicates (1.3%) - danger -->
-                    <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--danger)" stroke-width="4.5"
-                      stroke-dasharray="1.3 98.7" stroke-dashoffset="26.3"></circle>
+                    <!-- Valid Slice -->
+                    <circle id="donutValidCircle" cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--success)" stroke-width="4.5"
+                      stroke-dasharray="0 100" stroke-dashoffset="25"></circle>
+                    <!-- Flagged Slice -->
+                    <circle id="donutFlaggedCircle" cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--warning)" stroke-width="4.5"
+                      stroke-dasharray="0 100" stroke-dashoffset="25"></circle>
+                    <!-- Duplicates Slice -->
+                    <circle id="donutDuplicateCircle" cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--danger)" stroke-width="4.5"
+                      stroke-dasharray="0 100" stroke-dashoffset="25"></circle>
 
                     <g class="donut-text" transform="translate(0, 3)">
-                      <text x="50%" y="50%" font-size="7" font-weight="700" fill="var(--text-main)"
-                        text-anchor="middle">94.5%</text>
-                      <text x="50%" y="62%" font-size="3" font-weight="500" fill="var(--text-muted)"
+                      <text id="donutCenterPct" x="50%" y="50%" font-size="7" font-weight="700" fill="var(--text-main)"
+                        text-anchor="middle">0%</text>
+                      <text id="donutCenterLabel" x="50%" y="62%" font-size="3" font-weight="500" fill="var(--text-muted)"
                         text-anchor="middle">Valid</text>
                     </g>
                   </svg>
                 </div>
 
-                <!-- Custom Pie Legend -->
+                <!-- Dynamic Pie Legend -->
                 <div class="pie-legend">
                   <div class="pie-legend-item">
                     <div class="legend-label-wrapper">
                       <span class="legend-color" style="background-color: var(--success);"></span>
                       <span>Valid invoices</span>
                     </div>
-                    <span class="legend-val">1,180 <span class="legend-percent">94.5%</span></span>
+                    <span class="legend-val" id="donutLegendValid">0 <span class="legend-percent">0%</span></span>
                   </div>
                   <div class="pie-legend-item">
                     <div class="legend-label-wrapper">
                       <span class="legend-color" style="background-color: var(--warning);"></span>
                       <span>Flagged warning</span>
                     </div>
-                    <span class="legend-val">52 <span class="legend-percent">4.2%</span></span>
+                    <span class="legend-val" id="donutLegendFlagged">0 <span class="legend-percent">0%</span></span>
                   </div>
                   <div class="pie-legend-item">
                     <div class="legend-label-wrapper">
                       <span class="legend-color" style="background-color: var(--danger);"></span>
                       <span>Duplicates detected</span>
                     </div>
-                    <span class="legend-val">16 <span class="legend-percent">1.3%</span></span>
+                    <span class="legend-val" id="donutLegendDuplicates">0 <span class="legend-percent">0%</span></span>
                   </div>
                 </div>
 
@@ -383,78 +383,222 @@
 
               <!-- File Drag/Drop area -->
               <div class="upload-zone" id="dragDropArea">
-                <input type="file" class="file-input" id="invoiceFileInput" accept=".pdf,.xml,.json,.png,.jpg,.jpeg">
+                <input type="file" class="file-input" id="invoiceFileInput" accept=".pdf,.png,.jpg,.jpeg,.webp">
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
                 <div class="upload-zone-icon">
                   <i data-lucide="upload-cloud" style="width: 28px; height: 28px;"></i>
                 </div>
-                <h3 class="upload-title">Drag & drop invoice document here</h3>
-                <p class="upload-desc">Supports PDF, XML, JSON, or images (Max 10MB)</p>
-                <button class="btn btn-secondary btn-sm" id="browseFilesBtn">Browse Local Files</button>
+                <h3 class="upload-title">Drag & drop tax invoice document here</h3>
+                <p class="upload-desc">Supports PDF (text & scanned), PNG, JPG, JPEG, WebP (Max 20MB)</p>
+                <div style="display: flex; gap: 10px; justify-content: center; margin-top: 8px;">
+                  <button class="btn btn-secondary btn-sm" id="browseFilesBtn"><i data-lucide="folder-open"></i> Browse Files</button>
+                  <button class="btn btn-outline btn-sm" id="btnCameraUpload"><i data-lucide="camera"></i> Take Photo</button>
+                </div>
+                <span style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">Tip: You can also paste an image from clipboard (Ctrl+V)</span>
               </div>
 
               <!-- Uploading / Processing state -->
               <div class="validation-progress-panel" id="validationProgress">
                 <div class="loader-spinner"></div>
-                <h3 class="validation-headline" id="progressStatusHeadline">Extracting Invoice Details</h3>
-                <p class="validation-sub">Analyzing schema validation and arithmetic integrity rules...</p>
+                <h3 class="validation-headline" id="progressStatusHeadline">Scanning Document</h3>
+                <p class="validation-sub" id="progressStatusSub">Optimizing image and executing neural OCR extraction...</p>
 
                 <div class="validation-checklist-tracker">
                   <div class="tracker-step-item pending" id="step-ocr">
-                    <span>1. Text & Layout Extraction (OCR)</span>
+                    <span>1. Image Preprocessing & OCR Extraction</span>
                     <i data-lucide="circle"></i>
                   </div>
                   <div class="tracker-step-item pending" id="step-arithmetic">
-                    <span>2. Subtotal & VAT Arithmetic Check</span>
+                    <span>2. Smart Field Detection & Tax Calculation</span>
                     <i data-lucide="circle"></i>
                   </div>
                   <div class="tracker-step-item pending" id="step-db">
-                    <span>3. Supplier VAT ID Registration Match</span>
+                    <span>3. Supplier Registry & Tax ID Verification</span>
                     <i data-lucide="circle"></i>
                   </div>
                   <div class="tracker-step-item pending" id="step-duplicate">
-                    <span>4. Check for Duplicate Records</span>
+                    <span>4. Duplicate Analysis & Explainable Risk Scoring</span>
                     <i data-lucide="circle"></i>
                   </div>
                 </div>
               </div>
 
-              <!-- Finished validation result preview card -->
-              <div class="validation-results-panel" id="validationResultCard">
-                <div style="margin-bottom: 24px; text-align: center;">
-                  <div id="resultStatusIconWrapper"
-                    style="display: inline-flex; width: 48px; height: 48px; border-radius: 50%; align-items: center; justify-content: center; margin-bottom: 16px;">
-                    <i id="resultStatusIcon" data-lucide="check" style="width: 24px; height: 24px;"></i>
+              <!-- Finished validation result & Editable Fields preview card -->
+              <div class="validation-results-panel" id="validationResultCard" style="display: none;">
+                
+                <!-- Top Status Banner -->
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 20px;">
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <div id="resultStatusIconWrapper"
+                      style="display: inline-flex; width: 44px; height: 44px; border-radius: 50%; align-items: center; justify-content: center;">
+                      <i id="resultStatusIcon" data-lucide="check" style="width: 22px; height: 22px;"></i>
+                    </div>
+                    <div>
+                      <h3 class="validation-headline" id="resultStatusTitle" style="margin: 0; font-size: 18px;">Invoice Scanned & Validated</h3>
+                      <p class="validation-sub" id="resultStatusSubtitle" style="margin: 2px 0 0 0; font-size: 13px;">Review extracted fields and verify tax calculation compliance.</p>
+                    </div>
                   </div>
-                  <h3 class="validation-headline" id="resultStatusTitle">Invoice Validation Successful</h3>
-                  <p class="validation-sub" id="resultStatusSubtitle">Invoice matches all structural validation
-                    criteria.</p>
+                  <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                    <span class="confidence-badge high" id="resultConfidenceBadge"><i data-lucide="sparkles"></i> 96% OCR Confidence</span>
+                    <span style="font-size: 11px; color: var(--text-muted);" id="resultProcessingTime">Processed in 0.85s</span>
+                  </div>
                 </div>
 
-                <div class="results-meta-card">
+                <!-- Two-Column Split Review: Left (Raw Extracted Text / Doc), Right (Editable Fields) -->
+                <div class="ocr-split-review">
+                  
+                  <!-- Left: Extracted Text / Preview -->
                   <div>
-                    <span
-                      style="font-size: 11px; text-transform: uppercase; color: var(--text-light); letter-spacing: 0.05em; font-weight: 600;">Supplier</span>
-                    <h4 id="resultVendor" style="font-size: 15px; font-weight: 600;">Amazon Web Services</h4>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <span style="font-size: 12px; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.04em;">Extracted Document Content</span>
+                      <span style="font-size: 11px; color: var(--text-muted);">OCR Output</span>
+                    </div>
+                    <div class="ocr-preview-box" id="resultRawTextBox">
+                      <!-- Raw text filled dynamically -->
+                    </div>
                   </div>
-                  <div style="text-align: right;">
-                    <span
-                      style="font-size: 11px; text-transform: uppercase; color: var(--text-light); letter-spacing: 0.05em; font-weight: 600;">Total
-                      Amount</span>
-                    <h4 id="resultTotal" style="font-size: 15px; font-weight: 700; color: var(--primary);">$1,452.80
-                    </h4>
+
+                  <!-- Right: Form of Extracted Editable Fields -->
+                  <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <span style="font-size: 12px; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.04em;">Editable Invoice Fields</span>
+                      <span style="font-size: 11px; color: var(--primary); font-weight: 600;">You can edit before saving</span>
+                    </div>
+
+                    <div class="ocr-form-grid">
+                      <div class="ocr-form-group">
+                        <label class="ocr-form-label" for="editInvNumber">
+                          <span>Invoice Number</span>
+                          <span class="confidence-badge high" id="confInvNumber">98%</span>
+                        </label>
+                        <input type="text" id="editInvNumber" class="ocr-form-input">
+                      </div>
+
+                      <div class="ocr-form-group">
+                        <label class="ocr-form-label" for="editCurrency">
+                          <span>Currency</span>
+                          <span class="confidence-badge high" id="confCurrency">95%</span>
+                        </label>
+                        <input type="text" id="editCurrency" class="ocr-form-input" style="text-transform: uppercase;">
+                      </div>
+
+                      <div class="ocr-form-group">
+                        <label class="ocr-form-label" for="editSupplierName">
+                          <span>Supplier Name</span>
+                          <span class="confidence-badge high" id="confSupplierName">96%</span>
+                        </label>
+                        <input type="text" id="editSupplierName" class="ocr-form-input">
+                      </div>
+
+                      <div class="ocr-form-group">
+                        <label class="ocr-form-label" for="editSupplierTax">
+                          <span>Supplier Tax / VAT ID</span>
+                          <span class="confidence-badge high" id="confSupplierTax">92%</span>
+                        </label>
+                        <input type="text" id="editSupplierTax" class="ocr-form-input">
+                      </div>
+
+                      <div class="ocr-form-group">
+                        <label class="ocr-form-label" for="editCustomerName">
+                          <span>Customer Name</span>
+                          <span class="confidence-badge high" id="confCustomerName">90%</span>
+                        </label>
+                        <input type="text" id="editCustomerName" class="ocr-form-input">
+                      </div>
+
+                      <div class="ocr-form-group">
+                        <label class="ocr-form-label" for="editCustomerTax">
+                          <span>Customer Tax ID</span>
+                          <span class="confidence-badge medium" id="confCustomerTax">85%</span>
+                        </label>
+                        <input type="text" id="editCustomerTax" class="ocr-form-input">
+                      </div>
+
+                      <div class="ocr-form-group">
+                        <label class="ocr-form-label" for="editInvoiceDate">
+                          <span>Invoice Date</span>
+                          <span class="confidence-badge high" id="confInvoiceDate">95%</span>
+                        </label>
+                        <input type="date" id="editInvoiceDate" class="ocr-form-input">
+                      </div>
+
+                      <div class="ocr-form-group">
+                        <label class="ocr-form-label" for="editDueDate">
+                          <span>Due Date</span>
+                          <span class="confidence-badge high" id="confDueDate">90%</span>
+                        </label>
+                        <input type="date" id="editDueDate" class="ocr-form-input">
+                      </div>
+
+                      <div class="ocr-form-group">
+                        <label class="ocr-form-label" for="editSubtotal">
+                          <span>Subtotal</span>
+                          <span class="confidence-badge high" id="confSubtotal">96%</span>
+                        </label>
+                        <input type="number" step="0.01" id="editSubtotal" class="ocr-form-input">
+                      </div>
+
+                      <div class="ocr-form-group">
+                        <label class="ocr-form-label" for="editVatRate">
+                          <span>Tax Rate (%)</span>
+                          <span class="confidence-badge high" id="confVatRate">95%</span>
+                        </label>
+                        <input type="number" step="0.01" id="editVatRate" class="ocr-form-input">
+                      </div>
+
+                      <div class="ocr-form-group">
+                        <label class="ocr-form-label" for="editVatAmount">
+                          <span>Tax Amount</span>
+                          <span class="confidence-badge high" id="confVatAmount">94%</span>
+                        </label>
+                        <input type="number" step="0.01" id="editVatAmount" class="ocr-form-input">
+                      </div>
+
+                      <div class="ocr-form-group">
+                        <label class="ocr-form-label" for="editDiscount">
+                          <span>Discount</span>
+                          <span class="confidence-badge high" id="confDiscount">90%</span>
+                        </label>
+                        <input type="number" step="0.01" id="editDiscount" class="ocr-form-input">
+                      </div>
+
+                      <div class="ocr-form-group">
+                        <label class="ocr-form-label" for="editShipping">
+                          <span>Shipping / Freight</span>
+                          <span class="confidence-badge high" id="confShipping">90%</span>
+                        </label>
+                        <input type="number" step="0.01" id="editShipping" class="ocr-form-input">
+                      </div>
+
+                      <div class="ocr-form-group">
+                        <label class="ocr-form-label" for="editTotal">
+                          <span>Grand Total</span>
+                          <span class="confidence-badge high" id="confTotal">98%</span>
+                        </label>
+                        <input type="number" step="0.01" id="editTotal" class="ocr-form-input" style="font-weight: 700; color: var(--primary);">
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+
+                <!-- Detailed Checks & Risk Analysis Section -->
+                <div style="margin-top: 24px;">
+                  <div class="rules-headline">Compliance & Fraud Checks Log</div>
+                  <div class="rules-result-grid" id="rulesDetailsGrid">
+                    <!-- JS dynamic rule checks items -->
                   </div>
                 </div>
 
-                <div class="rules-headline">Detailed Checks Log</div>
-
-                <div class="rules-result-grid" id="rulesDetailsGrid">
-                  <!-- JS dynamic rule checks items -->
+                <!-- Action Button Controls -->
+                <div class="results-action-row" style="margin-top: 24px;">
+                  <button class="btn btn-outline" id="btnRejectUpload"><i data-lucide="arrow-left"></i> Upload Another</button>
+                  <button class="btn btn-secondary" id="btnRevalidateInvoice"><i data-lucide="refresh-cw"></i> Save & Revalidate</button>
+                  <button class="btn btn-outline" id="btnDownloadPdfReport"><i data-lucide="file-text"></i> PDF Report</button>
+                  <button class="btn btn-primary" id="btnAcceptUpload"><i data-lucide="check"></i> Confirm & View History</button>
                 </div>
 
-                <div class="results-action-row">
-                  <button class="btn btn-outline" id="btnRejectUpload">Cancel Validation</button>
-                  <button class="btn btn-primary" id="btnAcceptUpload">Save to History</button>
-                </div>
               </div>
 
               <!-- Static list of active engine rules -->
@@ -564,9 +708,9 @@
           <div class="dashboard-grid" style="margin-bottom: 24px;">
             <div class="kpi-card">
               <div class="kpi-header">
-                <span class="kpi-title">Audit Error Rate</span>
+                <span class="kpi-title">Audit Discrepancy Rate</span>
               </div>
-              <span class="kpi-value" style="color: var(--danger-text)">5.4%</span>
+              <span class="kpi-value" id="reportKpiErrorRate" style="color: var(--danger-text)">0.0%</span>
               <div class="kpi-footer">
                 <span class="kpi-context">average discrepancy index</span>
               </div>
@@ -575,27 +719,27 @@
               <div class="kpi-header">
                 <span class="kpi-title">Total Tax Validated</span>
               </div>
-              <span class="kpi-value" style="color: var(--primary)">$246,810</span>
+              <span class="kpi-value" id="reportKpiTotalTax" style="color: var(--primary)">$0.00</span>
               <div class="kpi-footer">
                 <span class="kpi-context">aggregate tax processed</span>
               </div>
             </div>
             <div class="kpi-card">
               <div class="kpi-header">
-                <span class="kpi-title">Unrecovered Claims</span>
+                <span class="kpi-title">Flagged Invoices</span>
               </div>
-              <span class="kpi-value" style="color: var(--warning-text)">$12,408</span>
+              <span class="kpi-value" id="reportKpiFlaggedClaims" style="color: var(--warning-text)">0</span>
               <div class="kpi-footer">
-                <span class="kpi-context">due to flagged VAT details</span>
+                <span class="kpi-context">invoices requiring auditor review</span>
               </div>
             </div>
             <div class="kpi-card">
               <div class="kpi-header">
-                <span class="kpi-title">Avg processing speed</span>
+                <span class="kpi-title">Avg Processing Speed</span>
               </div>
-              <span class="kpi-value">1.8s</span>
+              <span class="kpi-value" id="reportKpiAvgSpeed">0.0s</span>
               <div class="kpi-footer">
-                <span class="kpi-context">per invoice validation check</span>
+                <span class="kpi-context">per invoice verification check</span>
               </div>
             </div>
           </div>
@@ -611,51 +755,8 @@
               </div>
               <div class="section-body">
                 <!-- Bar Chart layout using custom divs -->
-                <div style="display: flex; flex-direction: column; gap: 16px;">
-
-                  <div>
-                    <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-                      <span>Arithmetic Totals Mismatch</span>
-                      <strong class="legend-val">24 Flagged (46%)</strong>
-                    </div>
-                    <div style="height: 8px; background-color: var(--bg-app); border-radius: 4px; overflow: hidden;">
-                      <div style="width: 46%; height: 100%; background-color: var(--danger); border-radius: 4px;"></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-                      <span>Supplier VAT Registration ID Unverified</span>
-                      <strong class="legend-val">15 Flagged (29%)</strong>
-                    </div>
-                    <div style="height: 8px; background-color: var(--bg-app); border-radius: 4px; overflow: hidden;">
-                      <div style="width: 29%; height: 100%; background-color: var(--warning); border-radius: 4px;">
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-                      <span>Duplicate Invoice Number Registered</span>
-                      <strong class="legend-val">8 Flagged (15%)</strong>
-                    </div>
-                    <div style="height: 8px; background-color: var(--bg-app); border-radius: 4px; overflow: hidden;">
-                      <div style="width: 15%; height: 100%; background-color: var(--primary); border-radius: 4px;">
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-                      <span>Missing Mandatory Fields (e.g. Invoice Date)</span>
-                      <strong class="legend-val">5 Flagged (10%)</strong>
-                    </div>
-                    <div style="height: 8px; background-color: var(--bg-app); border-radius: 4px; overflow: hidden;">
-                      <div style="width: 10%; height: 100%; background-color: var(--text-light); border-radius: 4px;">
-                      </div>
-                    </div>
-                  </div>
-
+                <div id="reportsFailureReasonsContainer" style="display: flex; flex-direction: column; gap: 16px;">
+                  <!-- Dynamic JS insert target -->
                 </div>
               </div>
             </div>
@@ -1116,14 +1217,18 @@
         </div>
 
         <!-- Action items -->
-        <div style="display: flex; gap: 12px; margin-top: auto;">
+        <div style="display: flex; gap: 8px; margin-top: auto;">
+          <button class="btn btn-outline" style="flex: 1;" id="drawerPdfBtn">
+            <i data-lucide="file-text"></i>
+            <span>PDF Report</span>
+          </button>
           <button class="btn btn-secondary" style="flex: 1;" id="drawerPrintBtn">
             <i data-lucide="printer"></i>
-            <span>Print Invoice</span>
+            <span>Print</span>
           </button>
           <button class="btn btn-danger" style="flex: 1;" id="drawerDeleteBtn">
             <i data-lucide="trash-2"></i>
-            <span>Delete Log</span>
+            <span>Delete</span>
           </button>
         </div>
 

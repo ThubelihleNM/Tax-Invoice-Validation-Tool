@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 import os
 
 from app.config.config import settings
-from app.database.connection import engine, Base, SessionLocal
+from app.database.connection import engine, Base, SessionLocal, get_db
 from app.api import auth, users, audit, invoices, validation, reports, analytics, settings as api_settings, system, ai, companies, countries
 
 def upgrade_db_schema():
@@ -197,3 +197,23 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 @app.get("/")
 def read_root():
     return {"message": "Welcome to Smart Tax Invoice Validation API"}
+
+@app.get("/health")
+def health_check(db=Depends(get_db)):
+    db_status = "connected"
+    try:
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
+    except Exception:
+        db_status = "error"
+
+    from app.services.ocr_service import ocr_service
+    ocr_status = "available" if ocr_service else "unavailable"
+
+    return {
+        "status": "healthy" if db_status == "connected" else "degraded",
+        "database": db_status,
+        "ocr": ocr_status,
+        "version": "1.0.0"
+    }
+

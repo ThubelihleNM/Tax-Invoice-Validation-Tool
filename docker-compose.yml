@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tax_invoice_validation_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=mysql+pymysql://invoice_user:invoice_secret@mysql:3306/tax_invoice_db
+      - SECRET_KEY=production-super-secret-key-replace-in-env
+      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.0
+    container_name: tax_invoice_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_super_secret
+      MYSQL_DATABASE: tax_invoice_db
+      MYSQL_USER: invoice_user
+      MYSQL_PASSWORD: invoice_secret
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "invoice_user", "-pinvoice_secret"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql_data:

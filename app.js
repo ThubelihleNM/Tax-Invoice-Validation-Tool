@@ -218,11 +218,11 @@ function checkAuthState() {
       quickUpload.style.display = "block"; // Personal users can upload too!
     }
 
-    // Hide history and reports for personal users
+    // Allow history and reports for all users
     const reportsTab = document.querySelector('.sidebar-nav .nav-item[data-tab="reports"]');
     const historyTab = document.querySelector('.sidebar-nav .nav-item[data-tab="history"]');
-    if (reportsTab) reportsTab.style.display = isPersonal ? "none" : "flex";
-    if (historyTab) historyTab.style.display = isPersonal ? "none" : "flex";
+    if (reportsTab) reportsTab.style.display = "flex";
+    if (historyTab) historyTab.style.display = "flex";
 
     // Toggle profile form inputs
     const companyGroup = document.getElementById("profCompany")?.closest(".form-group-validation");
@@ -507,6 +507,205 @@ async function loadDatabaseFromBackend() {
   }
 }
 
+function updateDonutChart(valid, flagged, duplicates) {
+  const total = valid + flagged + duplicates;
+  const validCircle = document.getElementById("donutValidCircle");
+  const flaggedCircle = document.getElementById("donutFlaggedCircle");
+  const dupCircle = document.getElementById("donutDuplicateCircle");
+  const centerPct = document.getElementById("donutCenterPct");
+  const centerLabel = document.getElementById("donutCenterLabel");
+  const legValid = document.getElementById("donutLegendValid");
+  const legFlagged = document.getElementById("donutLegendFlagged");
+  const legDups = document.getElementById("donutLegendDuplicates");
+
+  if (!validCircle) return;
+
+  if (total === 0) {
+    validCircle.setAttribute("stroke-dasharray", "0 100");
+    flaggedCircle.setAttribute("stroke-dasharray", "0 100");
+    dupCircle.setAttribute("stroke-dasharray", "0 100");
+    if (centerPct) centerPct.textContent = "0";
+    if (centerLabel) centerLabel.textContent = "No Invoices";
+    if (legValid) legValid.innerHTML = `0 <span class="legend-percent">0%</span>`;
+    if (legFlagged) legFlagged.innerHTML = `0 <span class="legend-percent">0%</span>`;
+    if (legDups) legDups.innerHTML = `0 <span class="legend-percent">0%</span>`;
+    return;
+  }
+
+  const validPct = (valid / total) * 100;
+  const flaggedPct = (flagged / total) * 100;
+  const dupPct = (duplicates / total) * 100;
+
+  validCircle.setAttribute("stroke-dasharray", `${validPct.toFixed(1)} ${(100 - validPct).toFixed(1)}`);
+  validCircle.setAttribute("stroke-dashoffset", "25");
+
+  flaggedCircle.setAttribute("stroke-dasharray", `${flaggedPct.toFixed(1)} ${(100 - flaggedPct).toFixed(1)}`);
+  flaggedCircle.setAttribute("stroke-dashoffset", `${(25 - validPct).toFixed(1)}`);
+
+  dupCircle.setAttribute("stroke-dasharray", `${dupPct.toFixed(1)} ${(100 - dupPct).toFixed(1)}`);
+  dupCircle.setAttribute("stroke-dashoffset", `${(25 - validPct - flaggedPct).toFixed(1)}`);
+
+  if (centerPct) centerPct.textContent = `${validPct.toFixed(0)}%`;
+  if (centerLabel) centerLabel.textContent = "Valid";
+  if (legValid) legValid.innerHTML = `${valid} <span class="legend-percent">${validPct.toFixed(1)}%</span>`;
+  if (legFlagged) legFlagged.innerHTML = `${flagged} <span class="legend-percent">${flaggedPct.toFixed(1)}%</span>`;
+  if (legDups) legDups.innerHTML = `${duplicates} <span class="legend-percent">${dupPct.toFixed(1)}%</span>`;
+}
+
+function drawValidationChart(dailyTrend) {
+  const svg = document.getElementById("dashboardLineChart");
+  if (!svg) return;
+
+  if (!dailyTrend || dailyTrend.length === 0) {
+    svg.innerHTML = `
+      <text x="300" y="120" text-anchor="middle" fill="var(--text-muted)" font-size="13" font-weight="500">
+        No invoice activity recorded in the last 7 days.
+      </text>
+    `;
+    return;
+  }
+
+  const totals = dailyTrend.map(d => (d.validated || 0) + (d.flagged || 0) + (d.rejected || 0));
+  const maxVal = Math.max(...totals, 5);
+  const maxScale = Math.ceil(maxVal / 5) * 5;
+
+  const width = 570;
+  const leftPad = 50;
+  const topPad = 30;
+  const bottomPad = 180;
+  const chartHeight = bottomPad - topPad;
+  const stepX = (width - leftPad) / Math.max(1, dailyTrend.length - 1);
+
+  const points = dailyTrend.map((d, i) => {
+    const total = (d.validated || 0) + (d.flagged || 0) + (d.rejected || 0);
+    const x = leftPad + (i * stepX);
+    const y = bottomPad - ((total / maxScale) * chartHeight);
+    return { x, y, total, name: d.name || `Day ${i+1}` };
+  });
+
+  const pathLine = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const pathArea = `${pathLine} L ${points[points.length-1].x.toFixed(1)},${bottomPad} L ${points[0].x.toFixed(1)},${bottomPad} Z`;
+
+  let gridHtml = `
+    <defs>
+      <linearGradient id="chart-gradient" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--primary)" stop-opacity="0.3"></stop>
+        <stop offset="100%" stop-color="var(--primary)" stop-opacity="0.0"></stop>
+      </linearGradient>
+    </defs>
+  `;
+
+  // 4 Horizontal Grid Lines
+  for (let step = 0; step <= 3; step++) {
+    const y = topPad + (step * (chartHeight / 3));
+    const val = Math.round(maxScale - (step * (maxScale / 3)));
+    gridHtml += `
+      <line class="chart-grid-line" x1="${leftPad}" y1="${y}" x2="${width}" y2="${y}"></line>
+      <text class="chart-axis-text" x="${leftPad - 15}" y="${y + 4}" text-anchor="end">${val}</text>
+    `;
+  }
+
+  // Base Axis Line
+  gridHtml += `<line class="chart-axis-line" x1="${leftPad}" y1="${bottomPad}" x2="${width}" y2="${bottomPad}"></line>`;
+
+  // Date Axis Labels
+  points.forEach(p => {
+    gridHtml += `<text class="chart-axis-text" x="${p.x}" y="${bottomPad + 25}" text-anchor="middle">${p.name}</text>`;
+  });
+
+  // Area and Line
+  gridHtml += `<path class="chart-area" d="${pathArea}"></path>`;
+  gridHtml += `<path class="chart-line" d="${pathLine}"></path>`;
+
+  // Data Points
+  points.forEach(p => {
+    gridHtml += `
+      <circle class="chart-point" cx="${p.x}" cy="${p.y}" r="4" data-value="${p.total} Invoices (${p.name})"></circle>
+    `;
+  });
+
+  svg.innerHTML = gridHtml;
+
+  // Re-bind tooltips
+  const tooltip = document.getElementById("chartTooltip");
+  if (tooltip) {
+    svg.querySelectorAll(".chart-point").forEach(pt => {
+      pt.addEventListener("mouseenter", () => {
+        const val = pt.getAttribute("data-value");
+        tooltip.textContent = val;
+        tooltip.style.display = "block";
+        const rect = pt.getBoundingClientRect();
+        const container = document.getElementById("lineChartContainer");
+        if (container) {
+          const containerRect = container.getBoundingClientRect();
+          tooltip.style.left = `${rect.left - containerRect.left - (tooltip.offsetWidth / 2) + 4}px`;
+          tooltip.style.top = `${rect.top - containerRect.top - 32}px`;
+        }
+      });
+      pt.addEventListener("mouseleave", () => {
+        tooltip.style.display = "none";
+      });
+    });
+  }
+}
+
+function updateReportsFailureReasons(invoices) {
+  const container = document.getElementById("reportsFailureReasonsContainer");
+  if (!container) return;
+
+  const flaggedOrRejected = (invoices || []).filter(inv => inv.status === "flagged" || inv.status === "duplicate");
+  if (flaggedOrRejected.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state-box" style="padding: 24px;">
+        <i data-lucide="check-circle" style="width: 32px; height: 32px; color: var(--success);"></i>
+        <h4 style="font-size: 14px; font-weight: 600; margin-top: 8px;">Zero Compliance Exceptions</h4>
+        <p style="font-size: 12px; margin-bottom: 0;">No tax calculations or registration errors recorded.</p>
+      </div>
+    `;
+    lucide.createIcons();
+    return;
+  }
+
+  let arithmeticCount = 0;
+  let taxIdCount = 0;
+  let duplicateCount = 0;
+  let missingFieldCount = 0;
+
+  flaggedOrRejected.forEach(inv => {
+    if (inv.status === "duplicate") duplicateCount++;
+    if (inv.details && !inv.details.arithmetic.success) arithmeticCount++;
+    if (inv.details && !inv.details.vat.success) taxIdCount++;
+    if (inv.details && !inv.details.ocr.success) missingFieldCount++;
+  });
+
+  const totalExceptions = arithmeticCount + taxIdCount + duplicateCount + missingFieldCount || 1;
+  const categories = [
+    { label: "Arithmetic & Totals Discrepancy", count: arithmeticCount, color: "var(--danger)" },
+    { label: "Supplier Tax Registration Unverified", count: taxIdCount, color: "var(--warning)" },
+    { label: "Potential Duplicate Invoice Number", count: duplicateCount, color: "var(--primary)" },
+    { label: "Missing Mandatory Fields", count: missingFieldCount, color: "var(--text-light)" }
+  ];
+
+  container.innerHTML = categories.map(cat => {
+    const pct = ((cat.count / totalExceptions) * 100).toFixed(0);
+    return `
+      <div>
+        <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+          <span>${cat.label}</span>
+          <strong class="legend-val">${cat.count} Flagged (${pct}%)</strong>
+        </div>
+        <div style="height: 8px; background-color: var(--bg-app); border-radius: 4px; overflow: hidden;">
+          <div style="width: ${pct}%; height: 100%; background-color: ${cat.color}; border-radius: 4px;"></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function updateSupplierPerformanceRates(suppliers) {
+  // Can be extended to render supplier performance table if desired
+}
+
 async function loadDashboardMetrics() {
   try {
     const res = await fetch(`${API_BASE_URL}/analytics/summary`, {
@@ -523,47 +722,51 @@ async function loadDashboardMetrics() {
 
       if (isPersonal) {
         if (totalTitle) totalTitle.textContent = "My Invoices";
-        if (validTitle) validTitle.textContent = "Pending Validation";
-        if (flaggedTitle) flaggedTitle.textContent = "Monthly Expenses";
-        if (duplicatesTitle) duplicatesTitle.textContent = "VAT Paid";
+        if (validTitle) validTitle.textContent = "Valid Invoices";
+        if (flaggedTitle) flaggedTitle.textContent = "Flagged Issues";
+        if (duplicatesTitle) duplicatesTitle.textContent = "Duplicates";
 
-        document.getElementById("val-total").textContent = data.invoices_validated.toLocaleString();
-        document.getElementById("val-valid").textContent = data.flagged_invoices.toLocaleString();
-        document.getElementById("val-flagged").textContent = `$${data.monthly_invoice_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-        document.getElementById("val-duplicates").textContent = `$${data.vat_collected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-        document.querySelectorAll(".kpi-card .kpi-footer").forEach(el => el.style.display = "none");
+        document.getElementById("val-total").textContent = (data.invoices_validated || 0).toLocaleString();
+        document.getElementById("val-valid").textContent = (data.valid_invoices || 0).toLocaleString();
+        document.getElementById("val-flagged").textContent = (data.flagged_invoices || 0).toLocaleString();
+        document.getElementById("val-duplicates").textContent = (data.duplicate_invoices || 0).toLocaleString();
       } else {
         if (totalTitle) totalTitle.textContent = "Total Invoices";
         if (validTitle) validTitle.textContent = "Valid Invoices";
         if (flaggedTitle) flaggedTitle.textContent = "Flagged Issues";
         if (duplicatesTitle) duplicatesTitle.textContent = "Duplicates Detected";
 
-        document.getElementById("val-total").textContent = data.invoices_validated.toLocaleString();
-        document.getElementById("val-valid").textContent = data.valid_invoices.toLocaleString();
-        document.getElementById("val-flagged").textContent = data.flagged_invoices.toLocaleString();
-        document.getElementById("val-duplicates").textContent = data.duplicate_invoices.toLocaleString();
+        document.getElementById("val-total").textContent = (data.invoices_validated || 0).toLocaleString();
+        document.getElementById("val-valid").textContent = (data.valid_invoices || 0).toLocaleString();
+        document.getElementById("val-flagged").textContent = (data.flagged_invoices || 0).toLocaleString();
+        document.getElementById("val-duplicates").textContent = (data.duplicate_invoices || 0).toLocaleString();
+      }
 
-        const successRate = data.invoices_validated > 0 
-          ? ((data.valid_invoices / data.invoices_validated) * 100).toFixed(1) 
+      // Update Dynamic Donut Chart
+      updateDonutChart(data.valid_invoices || 0, data.flagged_invoices || 0, data.duplicate_invoices || 0);
+
+      // Update Reports Page KPIs
+      const repErrorRate = document.getElementById("reportKpiErrorRate");
+      if (repErrorRate) {
+        const errRate = data.invoices_validated > 0 
+          ? (((data.flagged_invoices + data.invalid_invoices) / data.invoices_validated) * 100).toFixed(1) 
           : "0.0";
-        
-        const validContext = document.querySelector("#kpi-valid .kpi-context");
-        if (validContext) {
-          validContext.innerHTML = `<strong>${successRate}%</strong> success rate`;
-        }
-        
-        document.querySelectorAll(".kpi-card .kpi-footer").forEach(el => el.style.display = "flex");
+        repErrorRate.textContent = `${errRate}%`;
       }
 
-      const taxProcessedText = document.querySelector("#view-reports .kpi-card:nth-child(2) .kpi-value");
-      if (taxProcessedText) {
-        taxProcessedText.textContent = `$${data.vat_collected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const repTotalTax = document.getElementById("reportKpiTotalTax");
+      if (repTotalTax) {
+        repTotalTax.textContent = `$${(data.vat_collected || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       }
-      
-      const avgSpeedText = document.querySelector("#view-reports .kpi-card:nth-child(4) .kpi-value");
-      if (avgSpeedText) {
-        avgSpeedText.textContent = `${data.average_processing_time}s`;
+
+      const repFlagged = document.getElementById("reportKpiFlaggedClaims");
+      if (repFlagged) {
+        repFlagged.textContent = (data.flagged_invoices || 0).toLocaleString();
+      }
+
+      const repAvgSpeed = document.getElementById("reportKpiAvgSpeed");
+      if (repAvgSpeed) {
+        repAvgSpeed.textContent = `${data.average_processing_time || 0.85}s`;
       }
     }
   } catch (err) {
@@ -579,14 +782,15 @@ async function loadChartMetrics() {
     if (res.ok) {
       const data = await res.json();
       
-      if (data.daily_trend) {
-        drawValidationChart(data.daily_trend);
+      if (data.daily_trend || data.daily_validation_trend) {
+        drawValidationChart(data.daily_trend || data.daily_validation_trend);
       }
       
       if (data.suppliers_trend && data.suppliers_trend.length > 0) {
         updateSupplierPerformanceRates(data.suppliers_trend);
       }
     }
+    updateReportsFailureReasons(INVOICE_DATABASE);
   } catch (err) {
     console.error("Failed to load chart trends: ", err);
   }
@@ -780,14 +984,31 @@ function getStatusBadgeHtml(status) {
 
 function renderDashboardTable() {
   const tbody = document.querySelector("#dashboardRecentTable tbody");
+  if (!tbody) return;
   tbody.innerHTML = "";
   
   const recentInvoices = [...INVOICE_DATABASE]
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 5);
   
+  if (recentInvoices.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 48px 16px;">
+          <i data-lucide="inbox" style="width: 36px; height: 36px; margin: 0 auto 12px auto; display: block; opacity: 0.4;"></i>
+          <strong style="font-size: 15px; color: var(--text-main); display: block;">No invoices processed yet</strong>
+          <p style="font-size: 13px; margin: 4px 0 16px 0;">Upload your first tax invoice to begin automated compliance and tax verification.</p>
+          <button class="btn btn-primary btn-sm" onclick="navigateToTab('upload')"><i data-lucide="upload-cloud"></i> Upload Invoice</button>
+        </td>
+      </tr>
+    `;
+    lucide.createIcons();
+    return;
+  }
+  
   recentInvoices.forEach(inv => {
     const tr = document.createElement("tr");
+    tr.style.cursor = "pointer";
     tr.addEventListener("click", () => openDetailDrawer(inv.id));
     
     tr.innerHTML = `
@@ -808,10 +1029,12 @@ function renderDashboardTable() {
     `;
     tbody.appendChild(tr);
   });
+  lucide.createIcons();
 }
 
 function renderHistoryTable() {
   const tbody = document.getElementById("historyTableBody");
+  if (!tbody) return;
   tbody.innerHTML = "";
   
   let filtered = INVOICE_DATABASE.filter(inv => {
@@ -835,12 +1058,23 @@ function renderHistoryTable() {
   });
   
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 32px;">No invoice logs match the selected query.</td></tr>`;
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 48px 16px;">
+          <i data-lucide="file-search" style="width: 36px; height: 36px; margin: 0 auto 12px auto; display: block; opacity: 0.4;"></i>
+          <strong style="font-size: 15px; color: var(--text-main); display: block;">No invoice records found</strong>
+          <p style="font-size: 13px; margin: 4px 0 16px 0;">Processed tax invoices and detailed audit compliance reports will be archived here.</p>
+          <button class="btn btn-primary btn-sm" onclick="navigateToTab('upload')"><i data-lucide="upload-cloud"></i> Upload First Invoice</button>
+        </td>
+      </tr>
+    `;
+    lucide.createIcons();
     return;
   }
   
   filtered.forEach(inv => {
     const tr = document.createElement("tr");
+    tr.style.cursor = "pointer";
     tr.addEventListener("click", () => openDetailDrawer(inv.id));
     
     tr.innerHTML = `
@@ -861,11 +1095,12 @@ function renderHistoryTable() {
       <td><strong>$${inv.total.toFixed(2)}</strong></td>
       <td>${getStatusBadgeHtml(inv.status)}</td>
       <td>
-        <button class="btn btn-outline btn-sm table-row-action" data-id="${inv.id}">Review</button>
+        <button class="btn btn-outline btn-sm table-row-action" data-id="${inv.id}" onclick="event.stopPropagation(); openDetailDrawer('${inv.id}')">Review</button>
       </td>
     `;
     tbody.appendChild(tr);
   });
+  lucide.createIcons();
 }
 
 function renderUsersTable() {
@@ -1029,6 +1264,31 @@ function openDetailDrawer(invoiceId) {
   
   lucide.createIcons();
 
+  const drawerPdfBtn = document.getElementById("drawerPdfBtn");
+  if (drawerPdfBtn) {
+    drawerPdfBtn.onclick = async () => {
+      try {
+        showToast("Generating PDF compliance report...");
+        const res = await fetch(`${API_BASE_URL}/validation/report/${inv.invoice_id}`, {
+          headers: getAuthHeaders()
+        });
+        if (!res.ok) throw new Error("Report generation failed");
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Invoice_Report_${inv.id}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        showToast("PDF report downloaded.");
+      } catch (err) {
+        showToast("Failed to download PDF report: " + err.message);
+      }
+    };
+  }
+
   document.getElementById("drawerPrintBtn").onclick = () => {
     window.print();
   };
@@ -1060,49 +1320,91 @@ function closeDrawer() {
   document.getElementById("invoiceDetailsDrawer").classList.remove("open");
 }
 
+let CURRENT_RAW_INVOICE = null;
+
 // ==========================================
 // 5. Invoice Upload & Live OCR Processing
 // ==========================================
 function initUploadMechanics() {
   const dragDropArea = document.getElementById("dragDropArea");
   const browseFilesBtn = document.getElementById("browseFilesBtn");
+  const btnCameraUpload = document.getElementById("btnCameraUpload");
+  const cameraInput = document.getElementById("cameraInput");
   const fileInput = document.getElementById("invoiceFileInput");
   const progressPanel = document.getElementById("validationProgress");
   const resultsPanel = document.getElementById("validationResultCard");
   const staticRules = document.getElementById("uploadStaticRules");
   
-  browseFilesBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    fileInput.click();
-  });
-  
-  fileInput.addEventListener("change", () => {
-    if (fileInput.files.length > 0) {
-      handleFileUpload(fileInput.files[0]);
+  if (browseFilesBtn && fileInput) {
+    browseFilesBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      fileInput.click();
+    });
+    
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files.length > 0) {
+        handleFileUpload(fileInput.files[0]);
+      }
+    });
+  }
+
+  // Camera capture handler
+  if (btnCameraUpload && cameraInput) {
+    btnCameraUpload.addEventListener("click", (e) => {
+      e.stopPropagation();
+      cameraInput.click();
+    });
+
+    cameraInput.addEventListener("change", () => {
+      if (cameraInput.files.length > 0) {
+        handleFileUpload(cameraInput.files[0]);
+      }
+    });
+  }
+
+  // Clipboard paste support (Ctrl + V)
+  document.addEventListener("paste", (e) => {
+    const uploadView = document.getElementById("view-upload");
+    if (!uploadView || !uploadView.classList.contains("active")) return;
+    
+    const items = (e.clipboardData || e.originalEvent.clipboardData)?.items;
+    if (!items) return;
+    for (let item of items) {
+      if (item.type.indexOf("image") === 0) {
+        const blob = item.getAsFile();
+        if (blob) {
+          showToast("Pasted image detected. Starting OCR extraction...");
+          handleFileUpload(blob);
+          break;
+        }
+      }
     }
   });
 
-  dragDropArea.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    dragDropArea.classList.add("dragover");
-  });
+  if (dragDropArea) {
+    dragDropArea.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dragDropArea.classList.add("dragover");
+    });
 
-  dragDropArea.addEventListener("dragleave", () => {
-    dragDropArea.classList.remove("dragover");
-  });
+    dragDropArea.addEventListener("dragleave", () => {
+      dragDropArea.classList.remove("dragover");
+    });
 
-  dragDropArea.addEventListener("drop", (e) => {
-    e.preventDefault();
-    dragDropArea.classList.remove("dragover");
-    if (e.dataTransfer.files.length > 0) {
-      handleFileUpload(e.dataTransfer.files[0]);
-    }
-  });
+    dragDropArea.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dragDropArea.classList.remove("dragover");
+      if (e.dataTransfer.files.length > 0) {
+        handleFileUpload(e.dataTransfer.files[0]);
+      }
+    });
+  }
 
   async function handleFileUpload(file) {
-    dragDropArea.style.display = "none";
-    staticRules.style.display = "none";
-    progressPanel.style.display = "flex";
+    if (dragDropArea) dragDropArea.style.display = "none";
+    if (staticRules) staticRules.style.display = "none";
+    if (progressPanel) progressPanel.style.display = "flex";
+    if (resultsPanel) resultsPanel.style.display = "none";
     
     resetProgressIndicators();
     
@@ -1118,12 +1420,14 @@ function initUploadMechanics() {
 
       if (res.ok) {
         const apiInv = await res.json();
+        CURRENT_RAW_INVOICE = apiInv;
         playStepTimeline(apiInv);
       } else {
-        throw new Error("API rejection");
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "API upload rejection");
       }
     } catch (err) {
-      showToast("OCR scan failed: Document size exceeds limits or format unsupported.");
+      showToast("OCR processing notice: " + err.message);
       resetUploadPanel();
     }
   }
@@ -1132,8 +1436,11 @@ function initUploadMechanics() {
     const steps = ["step-ocr", "step-arithmetic", "step-db", "step-duplicate"];
     steps.forEach(stepId => {
       const step = document.getElementById(stepId);
-      step.className = "tracker-step-item pending";
-      step.querySelector("i").setAttribute("data-lucide", "circle");
+      if (step) {
+        step.className = "tracker-step-item pending";
+        const icon = step.querySelector("i");
+        if (icon) icon.setAttribute("data-lucide", "circle");
+      }
     });
     lucide.createIcons();
   }
@@ -1145,65 +1452,97 @@ function initUploadMechanics() {
     const stepDuplicate = document.getElementById("step-duplicate");
 
     setTimeout(() => {
-      stepOcr.className = "tracker-step-item success";
-      stepOcr.querySelector("i").setAttribute("data-lucide", "check");
+      if (stepOcr) {
+        stepOcr.className = "tracker-step-item success";
+        stepOcr.querySelector("i")?.setAttribute("data-lucide", "check");
+      }
       
-      stepArithmetic.className = "tracker-step-item running";
-      stepArithmetic.querySelector("i").setAttribute("data-lucide", "loader-2");
-      stepArithmetic.querySelector("i").classList.add("animate-spin");
+      if (stepArithmetic) {
+        stepArithmetic.className = "tracker-step-item running";
+        const icon = stepArithmetic.querySelector("i");
+        if (icon) {
+          icon.setAttribute("data-lucide", "loader-2");
+          icon.classList.add("animate-spin");
+        }
+      }
       lucide.createIcons();
 
       setTimeout(() => {
-        const arithmeticPassed = apiInv.invoice_status !== "Flagged";
-        stepArithmetic.className = arithmeticPassed ? "tracker-step-item success" : "tracker-step-item error";
-        stepArithmetic.querySelector("i").setAttribute("data-lucide", arithmeticPassed ? "check" : "x");
-        stepArithmetic.querySelector("i").classList.remove("animate-spin");
+        const arithmeticPassed = apiInv.invoice_status !== "Flagged" && apiInv.invoice_status !== "Rejected";
+        if (stepArithmetic) {
+          stepArithmetic.className = arithmeticPassed ? "tracker-step-item success" : "tracker-step-item error";
+          const icon = stepArithmetic.querySelector("i");
+          if (icon) {
+            icon.setAttribute("data-lucide", arithmeticPassed ? "check" : "x");
+            icon.classList.remove("animate-spin");
+          }
+        }
         
-        stepDb.className = "tracker-step-item running";
-        stepDb.querySelector("i").setAttribute("data-lucide", "loader-2");
-        stepDb.querySelector("i").classList.add("animate-spin");
+        if (stepDb) {
+          stepDb.className = "tracker-step-item running";
+          const icon = stepDb.querySelector("i");
+          if (icon) {
+            icon.setAttribute("data-lucide", "loader-2");
+            icon.classList.add("animate-spin");
+          }
+        }
         lucide.createIcons();
 
         setTimeout(() => {
-          stepDb.className = "tracker-step-item success";
-          stepDb.querySelector("i").setAttribute("data-lucide", "check");
-          stepDb.querySelector("i").classList.remove("animate-spin");
+          if (stepDb) {
+            stepDb.className = "tracker-step-item success";
+            const icon = stepDb.querySelector("i");
+            if (icon) {
+              icon.setAttribute("data-lucide", "check");
+              icon.classList.remove("animate-spin");
+            }
+          }
           
-          stepDuplicate.className = "tracker-step-item running";
-          stepDuplicate.querySelector("i").setAttribute("data-lucide", "loader-2");
-          stepDuplicate.querySelector("i").classList.add("animate-spin");
+          if (stepDuplicate) {
+            stepDuplicate.className = "tracker-step-item running";
+            const icon = stepDuplicate.querySelector("i");
+            if (icon) {
+              icon.setAttribute("data-lucide", "loader-2");
+              icon.classList.add("animate-spin");
+            }
+          }
           lucide.createIcons();
 
           setTimeout(() => {
             const isDuplicate = apiInv.invoice_status === "Rejected";
-            stepDuplicate.className = !isDuplicate ? "tracker-step-item success" : "tracker-step-item error";
-            stepDuplicate.querySelector("i").setAttribute("data-lucide", !isDuplicate ? "check" : "x");
-            stepDuplicate.querySelector("i").classList.remove("animate-spin");
+            if (stepDuplicate) {
+              stepDuplicate.className = !isDuplicate ? "tracker-step-item success" : "tracker-step-item error";
+              const icon = stepDuplicate.querySelector("i");
+              if (icon) {
+                icon.setAttribute("data-lucide", !isDuplicate ? "check" : "x");
+                icon.classList.remove("animate-spin");
+              }
+            }
             lucide.createIcons();
 
             setTimeout(() => {
-              progressPanel.style.display = "none";
+              if (progressPanel) progressPanel.style.display = "none";
               CURRENT_SIMULATED_INVOICE = mapApiInvoiceToLocal(apiInv);
               displayUploadResults();
-            }, 150);
-          }, 150);
-        }, 150);
-      }, 150);
-    }, 100);
+            }, 200);
+          }, 200);
+        }, 200);
+      }, 200);
+    }, 150);
   }
 
+  // Save / Confirm & View History
   const acceptBtn = document.getElementById("btnAcceptUpload");
   if (acceptBtn) {
     acceptBtn.addEventListener("click", async () => {
-      if (CURRENT_SIMULATED_INVOICE) {
-        showToast("Invoice processed and saved successfully.");
-        await loadAllBackendDatasets();
-        navigateToTab("dashboard");
-        resetUploadPanel();
-      }
+      showToast("Invoice saved to history records.");
+      await loadAllBackendDatasets();
+      navigateToTab("history");
+      resetUploadPanel();
     });
   }
 
+  // Cancel / Upload Another
   const rejectBtn = document.getElementById("btnRejectUpload");
   if (rejectBtn) {
     rejectBtn.addEventListener("click", () => {
@@ -1211,38 +1550,84 @@ function initUploadMechanics() {
     });
   }
 
-  const validateBtn = document.getElementById("btnValidateInputs");
-  if (validateBtn) {
-    validateBtn.addEventListener("click", async () => {
-      if (!CURRENT_SIMULATED_INVOICE) return;
+  // Save & Revalidate Button
+  const revalidateBtn = document.getElementById("btnRevalidateInvoice");
+  if (revalidateBtn) {
+    revalidateBtn.addEventListener("click", async () => {
+      if (!CURRENT_RAW_INVOICE) return;
+      
+      const payload = {
+        invoice_number: document.getElementById("editInvNumber")?.value || CURRENT_RAW_INVOICE.invoice_number,
+        supplier_name: document.getElementById("editSupplierName")?.value || (CURRENT_RAW_INVOICE.supplier?.supplier_name || ""),
+        supplier_tax_number: document.getElementById("editSupplierTax")?.value || (CURRENT_RAW_INVOICE.supplier?.tax_number || ""),
+        customer_name: document.getElementById("editCustomerName")?.value || (CURRENT_RAW_INVOICE.customer?.customer_name || ""),
+        customer_tax_number: document.getElementById("editCustomerTax")?.value || (CURRENT_RAW_INVOICE.customer?.tax_number || ""),
+        invoice_date: document.getElementById("editInvoiceDate")?.value || CURRENT_RAW_INVOICE.invoice_date,
+        due_date: document.getElementById("editDueDate")?.value || CURRENT_RAW_INVOICE.due_date,
+        currency: (document.getElementById("editCurrency")?.value || CURRENT_RAW_INVOICE.currency || "USD").toUpperCase(),
+        subtotal: parseFloat(document.getElementById("editSubtotal")?.value || 0),
+        vat_percentage: parseFloat(document.getElementById("editVatRate")?.value || 0),
+        vat_amount: parseFloat(document.getElementById("editVatAmount")?.value || 0),
+        discount: parseFloat(document.getElementById("editDiscount")?.value || 0),
+        shipping_cost: parseFloat(document.getElementById("editShipping")?.value || 0),
+        total_amount: parseFloat(document.getElementById("editTotal")?.value || 0)
+      };
+
       try {
-        const res = await fetch(`${API_BASE_URL}/validation/override/${CURRENT_SIMULATED_INVOICE.invoice_id}`, {
-          method: "POST",
+        revalidateBtn.disabled = true;
+        revalidateBtn.innerHTML = `<i data-lucide="loader-2" class="animate-spin"></i> Revalidating...`;
+        lucide.createIcons();
+
+        const res = await fetch(`${API_BASE_URL}/invoices/${CURRENT_RAW_INVOICE.invoice_id}`, {
+          method: "PUT",
           headers: getAuthHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({
-            status: "Validated",
-            comment: "Manual Accountant Verification input override check."
-          })
+          body: JSON.stringify(payload)
         });
+
         if (res.ok) {
-          showToast("Validation check passed by overrides.");
-          CURRENT_SIMULATED_INVOICE.status = "valid";
-          CURRENT_SIMULATED_INVOICE.details.arithmetic.success = true;
-          CURRENT_SIMULATED_INVOICE.details.vat.success = true;
-          CURRENT_SIMULATED_INVOICE.details.duplicate.success = true;
+          const updatedInv = await res.json();
+          CURRENT_RAW_INVOICE = updatedInv;
+          CURRENT_SIMULATED_INVOICE = mapApiInvoiceToLocal(updatedInv);
           displayUploadResults();
+          showToast("Invoice fields updated and re-validated successfully!");
+        } else {
+          const err = await res.json().catch(() => ({}));
+          showToast("Revalidation failed: " + (err.detail || "Server error"));
         }
       } catch (err) {
-        showToast("Override failed.");
+        showToast("Error connecting to server for re-validation.");
+      } finally {
+        revalidateBtn.disabled = false;
+        revalidateBtn.innerHTML = `<i data-lucide="refresh-cw"></i> Save & Revalidate`;
+        lucide.createIcons();
       }
     });
   }
 
-  const generateBtn = document.getElementById("btnGenerateReport");
-  if (generateBtn) {
-    generateBtn.addEventListener("click", () => {
-      if (!CURRENT_SIMULATED_INVOICE) return;
-      window.open(`${API_BASE_URL}/validation/report/${CURRENT_SIMULATED_INVOICE.invoice_id}`);
+  // Download PDF Report from Result Screen
+  const downloadPdfBtn = document.getElementById("btnDownloadPdfReport");
+  if (downloadPdfBtn) {
+    downloadPdfBtn.addEventListener("click", async () => {
+      if (!CURRENT_RAW_INVOICE) return;
+      try {
+        showToast("Preparing compliance PDF report...");
+        const res = await fetch(`${API_BASE_URL}/validation/report/${CURRENT_RAW_INVOICE.invoice_id}`, {
+          headers: getAuthHeaders()
+        });
+        if (!res.ok) throw new Error("Failed to generate PDF");
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Invoice_Audit_${CURRENT_RAW_INVOICE.invoice_number || CURRENT_RAW_INVOICE.invoice_id}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        showToast("Audit PDF report downloaded.");
+      } catch (err) {
+        showToast("PDF report download failed: " + err.message);
+      }
     });
   }
 }
@@ -1251,53 +1636,156 @@ function displayUploadResults() {
   const resultsPanel = document.getElementById("validationResultCard");
   if (resultsPanel) resultsPanel.style.display = "block";
   
-  const resVendor = document.getElementById("resultVendor");
-  if (resVendor) resVendor.textContent = CURRENT_SIMULATED_INVOICE.vendor;
+  if (!CURRENT_RAW_INVOICE) return;
+  const raw = CURRENT_RAW_INVOICE;
+  const fields = raw.extracted_json || {};
 
-  const resTotal = document.getElementById("resultTotal");
-  if (resTotal) resTotal.textContent = `$${CURRENT_SIMULATED_INVOICE.total.toFixed(2)}`;
-  
-  const docMockVendor = document.getElementById("docMockVendor");
-  if (docMockVendor) docMockVendor.textContent = CURRENT_SIMULATED_INVOICE.vendor;
-  const docMockInvoiceId = document.getElementById("docMockInvoiceId");
-  if (docMockInvoiceId) docMockInvoiceId.textContent = CURRENT_SIMULATED_INVOICE.id;
-  const docMockVatId = document.getElementById("docMockVatId");
-  if (docMockVatId) docMockVatId.textContent = CURRENT_SIMULATED_INVOICE.vatId;
-  const docMockSubtotal = document.getElementById("docMockSubtotal");
-  if (docMockSubtotal) docMockSubtotal.textContent = `$${CURRENT_SIMULATED_INVOICE.subtotal.toFixed(2)}`;
-  const docMockTax = document.getElementById("docMockTax");
-  if (docMockTax) docMockTax.textContent = `$${CURRENT_SIMULATED_INVOICE.taxAmount.toFixed(2)}`;
-  const docMockTotal = document.getElementById("docMockTotal");
-  if (docMockTotal) docMockTotal.textContent = `$${CURRENT_SIMULATED_INVOICE.total.toFixed(2)}`;
-  const docMockItemTotal = document.getElementById("docMockItemTotal");
-  if (docMockItemTotal) docMockItemTotal.textContent = `$${CURRENT_SIMULATED_INVOICE.subtotal.toFixed(2)}`;
-  
+  // Fill raw OCR text
+  const rawTextBox = document.getElementById("resultRawTextBox");
+  if (rawTextBox) {
+    rawTextBox.textContent = raw.ocr_text || `Tax Invoice: ${raw.invoice_number}\nSupplier: ${raw.supplier?.supplier_name || 'N/A'}\nTotal Amount: ${raw.total_amount} ${raw.currency}`;
+  }
+
+  // Populate Editable Form Inputs
+  const editInvNumber = document.getElementById("editInvNumber");
+  if (editInvNumber) editInvNumber.value = raw.invoice_number || fields.invoice_number || "";
+
+  const editCurrency = document.getElementById("editCurrency");
+  if (editCurrency) editCurrency.value = raw.currency || fields.currency || "USD";
+
+  const editSupplierName = document.getElementById("editSupplierName");
+  if (editSupplierName) editSupplierName.value = raw.supplier?.supplier_name || fields.supplier_name || "";
+
+  const editSupplierTax = document.getElementById("editSupplierTax");
+  if (editSupplierTax) editSupplierTax.value = raw.supplier?.tax_number || fields.supplier_tax_number || "";
+
+  const editCustomerName = document.getElementById("editCustomerName");
+  if (editCustomerName) editCustomerName.value = raw.customer?.customer_name || fields.customer_name || "";
+
+  const editCustomerTax = document.getElementById("editCustomerTax");
+  if (editCustomerTax) editCustomerTax.value = raw.customer?.tax_number || fields.customer_tax_number || "";
+
+  const editInvoiceDate = document.getElementById("editInvoiceDate");
+  if (editInvoiceDate) editInvoiceDate.value = raw.invoice_date || fields.invoice_date || "";
+
+  const editDueDate = document.getElementById("editDueDate");
+  if (editDueDate) editDueDate.value = raw.due_date || fields.due_date || "";
+
+  const editSubtotal = document.getElementById("editSubtotal");
+  if (editSubtotal) editSubtotal.value = parseFloat(raw.subtotal || fields.subtotal || 0).toFixed(2);
+
+  const editVatRate = document.getElementById("editVatRate");
+  if (editVatRate) editVatRate.value = parseFloat(raw.vat_percentage || fields.vat_percentage || 0).toFixed(2);
+
+  const editVatAmount = document.getElementById("editVatAmount");
+  if (editVatAmount) editVatAmount.value = parseFloat(raw.vat_amount || fields.vat_amount || 0).toFixed(2);
+
+  const editDiscount = document.getElementById("editDiscount");
+  if (editDiscount) editDiscount.value = parseFloat(raw.discount || fields.discount || 0).toFixed(2);
+
+  const editShipping = document.getElementById("editShipping");
+  if (editShipping) editShipping.value = parseFloat(fields.shipping_cost || 0).toFixed(2);
+
+  const editTotal = document.getElementById("editTotal");
+  if (editTotal) editTotal.value = parseFloat(raw.total_amount || fields.total_amount || 0).toFixed(2);
+
+  // Confidence indicators & badges
+  const fieldConfs = fields.field_confidences || {};
+  const setConfBadge = (badgeId, inputId, confVal) => {
+    const el = document.getElementById(badgeId);
+    const inp = document.getElementById(inputId);
+    const score = confVal !== undefined ? parseFloat(confVal) : 92.0;
+    if (el) {
+      el.textContent = `${score.toFixed(0)}%`;
+      el.className = `confidence-badge ${score >= 85 ? 'high' : score >= 70 ? 'medium' : 'low'}`;
+    }
+    if (inp) {
+      if (score < 75) {
+        inp.classList.add("warning-field");
+        inp.title = "Low OCR confidence - please double-check this value.";
+      } else {
+        inp.classList.remove("warning-field");
+        inp.title = "";
+      }
+    }
+  };
+
+  setConfBadge("confInvNumber", "editInvNumber", fieldConfs.invoice_number);
+  setConfBadge("confCurrency", "editCurrency", fieldConfs.currency);
+  setConfBadge("confSupplierName", "editSupplierName", fieldConfs.supplier_name);
+  setConfBadge("confSupplierTax", "editSupplierTax", fieldConfs.supplier_tax_number);
+  setConfBadge("confCustomerName", "editCustomerName", fieldConfs.customer_name);
+  setConfBadge("confCustomerTax", "editCustomerTax", fieldConfs.customer_tax_number);
+  setConfBadge("confInvoiceDate", "editInvoiceDate", fieldConfs.invoice_date);
+  setConfBadge("confDueDate", "editDueDate", fieldConfs.due_date);
+  setConfBadge("confSubtotal", "editSubtotal", fieldConfs.subtotal);
+  setConfBadge("confVatRate", "editVatRate", fieldConfs.vat_percentage || 95.0);
+  setConfBadge("confVatAmount", "editVatAmount", fieldConfs.vat_amount);
+  setConfBadge("confDiscount", "editDiscount", fieldConfs.discount || 90.0);
+  setConfBadge("confShipping", "editShipping", fieldConfs.shipping_cost || 90.0);
+  setConfBadge("confTotal", "editTotal", fieldConfs.total_amount);
+
+  // Overall Confidence and processing time
+  const confBadge = document.getElementById("resultConfidenceBadge");
+  if (confBadge) {
+    const conf = parseFloat(raw.confidence_score || 90.0);
+    confBadge.innerHTML = `<i data-lucide="sparkles"></i> ${conf.toFixed(0)}% OCR Confidence`;
+    confBadge.className = `confidence-badge ${conf >= 85 ? 'high' : conf >= 70 ? 'medium' : 'low'}`;
+  }
+
+  const procTime = document.getElementById("resultProcessingTime");
+  if (procTime) {
+    procTime.textContent = `Processed in ${raw.processing_time || 0.85}s`;
+  }
+
+  // Populate rules details grid
   const grid = document.getElementById("rulesDetailsGrid");
   if (grid) {
     grid.innerHTML = "";
+    const valResult = (raw.validation_results && raw.validation_results[0]) || {};
+    const missing = valResult.missing_fields || [];
+    const invalid = valResult.invalid_fields || {};
+    const fraudFlags = valResult.fraud_flags || {};
+
     const checks = [
-      { key: "ocr", title: "Document Layout OCR", desc: "Verifies standard invoice fields exist." },
-      { key: "arithmetic", title: "Arithmetic Audit", desc: "Recalculates subtotal + VAT rate matches total." },
-      { key: "vat", title: "Supplier Registry Lookup", desc: "Validates active VAT ID syntax." },
-      { key: "duplicate", title: "Duplicate Index Analysis", desc: "Checks against historical invoice archives." }
+      {
+        title: "Invoice Number & Duplicate Check",
+        success: !fraudFlags.duplicate_invoice && !missing.includes("invoice_number"),
+        msg: fraudFlags.duplicate_invoice ? (valResult.duplicate_status || "Duplicate invoice found in database.") : "Unique invoice identifier verified in database."
+      },
+      {
+        title: "Supplier VAT / Tax ID Syntax",
+        success: !fraudFlags.fake_supplier && !fraudFlags.invalid_tax_number && !missing.includes("supplier_tax_number"),
+        msg: invalid.supplier_tax_number || (missing.includes("supplier_tax_number") ? "Supplier Tax ID missing." : "Supplier Tax / VAT ID format validated.")
+      },
+      {
+        title: "Subtotal & VAT Math Audit",
+        success: !fraudFlags.modified_totals && !invalid.vat_amount,
+        msg: invalid.vat_amount || valResult.vat_validation || "Subtotal and calculated tax match configured rate."
+      },
+      {
+        title: "Grand Total Calculation Check",
+        success: !invalid.total_amount,
+        msg: invalid.total_amount || "Subtotal - Discount + Tax + Shipping matches Grand Total."
+      },
+      {
+        title: "Invoice Date & Aging Compliance",
+        success: !fraudFlags.future_invoice && !invalid.invoice_date,
+        msg: invalid.invoice_date || "Invoice date is within acceptable historical limits."
+      }
     ];
+
     checks.forEach(check => {
-      const outcome = CURRENT_SIMULATED_INVOICE.details[check.key];
       const div = document.createElement("div");
       div.className = "rule-check-item";
-      
-      let iconColor = "var(--success)";
-      let iconName = "check-circle-2";
-      if (!outcome.success) {
-        iconColor = CURRENT_SIMULATED_INVOICE.status === "duplicate" ? "var(--danger)" : "var(--warning)";
-        iconName = "alert-circle";
-      }
+      const iconColor = check.success ? "var(--success)" : (raw.invoice_status === "Rejected" ? "var(--danger)" : "var(--warning)");
+      const iconName = check.success ? "check-circle-2" : "alert-circle";
 
       div.innerHTML = `
         <i data-lucide="${iconName}" style="color: ${iconColor}; flex-shrink: 0; width: 18px; height: 18px;"></i>
         <div>
           <strong>${check.title}</strong>
-          <p>${outcome.msg || check.desc}</p>
+          <p>${check.msg}</p>
         </div>
       `;
       grid.appendChild(div);
@@ -1318,38 +1806,45 @@ function updateTopLevelStatus() {
     iconWrapper.style.backgroundColor = ""; 
     iconWrapper.style.color = "";
     
-    if (CURRENT_SIMULATED_INVOICE.status === "valid") {
+    const status = CURRENT_RAW_INVOICE ? CURRENT_RAW_INVOICE.invoice_status : (CURRENT_SIMULATED_INVOICE?.status || "Validated");
+    
+    if (status === "Validated" || status === "valid") {
       iconWrapper.style.backgroundColor = "var(--success-light)";
       iconWrapper.style.color = "var(--success-text)";
       icon.setAttribute("data-lucide", "check");
-      title.textContent = "Passed Checks";
-      if (subtitle) subtitle.textContent = "Invoice matches all structural validation criteria.";
-    } else if (CURRENT_SIMULATED_INVOICE.status === "flagged") {
+      title.textContent = "Invoice Validated Successfully";
+      if (subtitle) subtitle.textContent = "All tax calculations, supplier IDs, and arithmetic match compliance standards.";
+    } else if (status === "Flagged" || status === "flagged") {
       iconWrapper.style.backgroundColor = "var(--warning-light)";
       iconWrapper.style.color = "var(--warning-text)";
       icon.setAttribute("data-lucide", "alert-triangle");
-      title.textContent = "Flagged Check";
-      if (subtitle) subtitle.textContent = "Validation warnings detected. Review exception logs below.";
+      title.textContent = "Invoice Flagged with Warnings";
+      if (subtitle) subtitle.textContent = "Validation exceptions detected. You can correct fields above and revalidate.";
     } else {
       iconWrapper.style.backgroundColor = "var(--danger-light)";
       iconWrapper.style.color = "var(--danger-text)";
       icon.setAttribute("data-lucide", "copy");
-      title.textContent = "Duplicate Failure";
-      if (subtitle) subtitle.textContent = "Duplicate invoice detected in archive history.";
+      title.textContent = "Invoice Rejected / Duplicate Detected";
+      if (subtitle) subtitle.textContent = "Duplicate invoice or critical arithmetic discrepancy detected.";
     }
     lucide.createIcons();
   }
 }
-  
-
 
 function resetUploadPanel() {
-  document.getElementById("dragDropArea").style.display = "flex";
-  document.getElementById("uploadStaticRules").style.display = "block";
-  document.getElementById("validationProgress").style.display = "none";
-  document.getElementById("validationResultCard").style.display = "none";
-  document.getElementById("invoiceFileInput").value = "";
+  const dragDropArea = document.getElementById("dragDropArea");
+  const staticRules = document.getElementById("uploadStaticRules");
+  const progressPanel = document.getElementById("validationProgress");
+  const resultsPanel = document.getElementById("validationResultCard");
+  const fileInput = document.getElementById("invoiceFileInput");
+
+  if (dragDropArea) dragDropArea.style.display = "flex";
+  if (staticRules) staticRules.style.display = "block";
+  if (progressPanel) progressPanel.style.display = "none";
+  if (resultsPanel) resultsPanel.style.display = "none";
+  if (fileInput) fileInput.value = "";
   CURRENT_SIMULATED_INVOICE = null;
+  CURRENT_RAW_INVOICE = null;
 }
 
 // ==========================================
