@@ -92,12 +92,17 @@
             </button>
             <div class="dropdown-menu" id="headerNotificationsDropdown"
               style="display: none; position: absolute; top: calc(100% + 8px); right: 0; background-color: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); width: 340px; max-height: 420px; z-index: 1000; overflow: hidden; flex-direction: column;">
-              <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border-color); background: #f8fafc;">
+              <div
+                style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border-color); background: #f8fafc;">
                 <span style="font-size: 13px; font-weight: 700; color: #1e293b;">Notifications</span>
-                <button type="button" id="markAllNotifsReadBtn" style="border: none; background: transparent; color: var(--primary); font-size: 11px; font-weight: 600; cursor: pointer;">Mark all as read</button>
+                <button type="button" id="markAllNotifsReadBtn"
+                  style="border: none; background: transparent; color: var(--primary); font-size: 11px; font-weight: 600; cursor: pointer;">Mark
+                  all as read</button>
               </div>
-              <div id="headerNotificationsList" style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column;">
-                <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 12px;">No new notifications</div>
+              <div id="headerNotificationsList"
+                style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column;">
+                <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 12px;">No new
+                  notifications</div>
               </div>
             </div>
           </div>
@@ -302,20 +307,22 @@
                   <svg width="140" height="140" viewBox="0 0 42 42">
                     <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#f1f5f9" stroke-width="4.5"></circle>
                     <!-- Valid Slice -->
-                    <circle id="donutValidCircle" cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--success)" stroke-width="4.5"
-                      stroke-dasharray="0 100" stroke-dashoffset="25"></circle>
+                    <circle id="donutValidCircle" cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--success)"
+                      stroke-width="4.5" stroke-dasharray="0 100" stroke-dashoffset="25"></circle>
                     <!-- Flagged Slice -->
-                    <circle id="donutFlaggedCircle" cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--warning)" stroke-width="4.5"
-                      stroke-dasharray="0 100" stroke-dashoffset="25"></circle>
+                    <circle id="donutFlaggedCircle" cx="21" cy="21" r="15.915" fill="transparent"
+                      stroke="var(--warning)" stroke-width="4.5" stroke-dasharray="0 100" stroke-dashoffset="25">
+                    </circle>
                     <!-- Duplicates Slice -->
-                    <circle id="donutDuplicateCircle" cx="21" cy="21" r="15.915" fill="transparent" stroke="var(--danger)" stroke-width="4.5"
-                      stroke-dasharray="0 100" stroke-dashoffset="25"></circle>
+                    <circle id="donutDuplicateCircle" cx="21" cy="21" r="15.915" fill="transparent"
+                      stroke="var(--danger)" stroke-width="4.5" stroke-dasharray="0 100" stroke-dashoffset="25">
+                    </circle>
 
                     <g class="donut-text" transform="translate(0, 3)">
                       <text id="donutCenterPct" x="50%" y="50%" font-size="7" font-weight="700" fill="var(--text-main)"
                         text-anchor="middle">0%</text>
-                      <text id="donutCenterLabel" x="50%" y="62%" font-size="3" font-weight="500" fill="var(--text-muted)"
-                        text-anchor="middle">Valid</text>
+                      <text id="donutCenterLabel" x="50%" y="62%" font-size="3" font-weight="500"
+                        fill="var(--text-muted)" text-anchor="middle">Valid</text>
                     </g>
                   </svg>
                 </div>
@@ -403,17 +410,21 @@
                 <h3 class="upload-title">Drag & drop tax invoice document here</h3>
                 <p class="upload-desc">Supports PDF (text & scanned), PNG, JPG, JPEG, WebP (Max 20MB)</p>
                 <div style="display: flex; gap: 10px; justify-content: center; margin-top: 8px;">
-                  <button class="btn btn-secondary btn-sm" id="browseFilesBtn"><i data-lucide="folder-open"></i> Browse Files</button>
-                  <button class="btn btn-outline btn-sm" id="btnCameraUpload"><i data-lucide="camera"></i> Take Photo</button>
+                  <button class="btn btn-secondary btn-sm" id="browseFilesBtn"><i data-lucide="folder-open"></i> Browse
+                    Files</button>
+                  <button class="btn btn-outline btn-sm" id="btnCameraUpload"><i data-lucide="camera"></i> Take
+                    Photo</button>
                 </div>
-                <span style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">Tip: You can also paste an image from clipboard (Ctrl+V)</span>
+                <span style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">Tip: You can also paste an
+                  image from clipboard (Ctrl+V)</span>
               </div>
 
               <!-- Uploading / Processing state -->
               <div class="validation-progress-panel" id="validationProgress">
                 <div class="loader-spinner"></div>
                 <h3 class="validation-headline" id="progressStatusHeadline">Scanning Document</h3>
-                <p class="validation-sub" id="progressStatusSub">Optimizing image and executing neural OCR extraction...</p>
+                <p class="validation-sub" id="progressStatusSub">Optimizing image and executing neural OCR extraction...
+                </p>
 
                 <div class="validation-checklist-tracker">
                   <div class="tracker-step-item pending" id="step-ocr">
@@ -437,32 +448,40 @@
 
               <!-- Finished validation result & Editable Fields preview card -->
               <div class="validation-results-panel" id="validationResultCard" style="display: none;">
-                
+
                 <!-- Top Status Banner -->
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 20px;">
+                <div
+                  style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 20px;">
                   <div style="display: flex; align-items: center; gap: 12px;">
                     <div id="resultStatusIconWrapper"
                       style="display: inline-flex; width: 44px; height: 44px; border-radius: 50%; align-items: center; justify-content: center;">
                       <i id="resultStatusIcon" data-lucide="check" style="width: 22px; height: 22px;"></i>
                     </div>
                     <div>
-                      <h3 class="validation-headline" id="resultStatusTitle" style="margin: 0; font-size: 18px;">Invoice Scanned & Validated</h3>
-                      <p class="validation-sub" id="resultStatusSubtitle" style="margin: 2px 0 0 0; font-size: 13px;">Review extracted fields and verify tax calculation compliance.</p>
+                      <h3 class="validation-headline" id="resultStatusTitle" style="margin: 0; font-size: 18px;">Invoice
+                        Scanned & Validated</h3>
+                      <p class="validation-sub" id="resultStatusSubtitle" style="margin: 2px 0 0 0; font-size: 13px;">
+                        Review extracted fields and verify tax calculation compliance.</p>
                     </div>
                   </div>
                   <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                    <span class="confidence-badge high" id="resultConfidenceBadge"><i data-lucide="sparkles"></i> 96% OCR Confidence</span>
-                    <span style="font-size: 11px; color: var(--text-muted);" id="resultProcessingTime">Processed in 0.85s</span>
+                    <span class="confidence-badge high" id="resultConfidenceBadge"><i data-lucide="sparkles"></i> 96%
+                      OCR Confidence</span>
+                    <span style="font-size: 11px; color: var(--text-muted);" id="resultProcessingTime">Processed in
+                      0.85s</span>
                   </div>
                 </div>
 
                 <!-- Two-Column Split Review: Left (Raw Extracted Text / Doc), Right (Editable Fields) -->
                 <div class="ocr-split-review">
-                  
+
                   <!-- Left: Extracted Text / Preview -->
                   <div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                      <span style="font-size: 12px; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.04em;">Extracted Document Content</span>
+                    <div
+                      style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <span
+                        style="font-size: 12px; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.04em;">Extracted
+                        Document Content</span>
                       <span style="font-size: 11px; color: var(--text-muted);">OCR Output</span>
                     </div>
                     <div class="ocr-preview-box" id="resultRawTextBox">
@@ -472,9 +491,13 @@
 
                   <!-- Right: Form of Extracted Editable Fields -->
                   <div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                      <span style="font-size: 12px; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.04em;">Editable Invoice Fields</span>
-                      <span style="font-size: 11px; color: var(--primary); font-weight: 600;">You can edit before saving</span>
+                    <div
+                      style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <span
+                        style="font-size: 12px; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.04em;">Editable
+                        Invoice Fields</span>
+                      <span style="font-size: 11px; color: var(--primary); font-weight: 600;">You can edit before
+                        saving</span>
                     </div>
 
                     <div class="ocr-form-grid">
@@ -587,7 +610,8 @@
                           <span>Grand Total</span>
                           <span class="confidence-badge high" id="confTotal">98%</span>
                         </label>
-                        <input type="number" step="0.01" id="editTotal" class="ocr-form-input" style="font-weight: 700; color: var(--primary);">
+                        <input type="number" step="0.01" id="editTotal" class="ocr-form-input"
+                          style="font-weight: 700; color: var(--primary);">
                       </div>
                     </div>
 
@@ -605,10 +629,14 @@
 
                 <!-- Action Button Controls -->
                 <div class="results-action-row" style="margin-top: 24px;">
-                  <button class="btn btn-outline" id="btnRejectUpload"><i data-lucide="arrow-left"></i> Upload Another</button>
-                  <button class="btn btn-secondary" id="btnRevalidateInvoice"><i data-lucide="refresh-cw"></i> Save & Revalidate</button>
-                  <button class="btn btn-outline" id="btnDownloadPdfReport"><i data-lucide="file-text"></i> PDF Report</button>
-                  <button class="btn btn-primary" id="btnAcceptUpload"><i data-lucide="check"></i> Confirm & View History</button>
+                  <button class="btn btn-outline" id="btnRejectUpload"><i data-lucide="arrow-left"></i> Upload
+                    Another</button>
+                  <button class="btn btn-secondary" id="btnRevalidateInvoice"><i data-lucide="refresh-cw"></i> Save &
+                    Revalidate</button>
+                  <button class="btn btn-outline" id="btnDownloadPdfReport"><i data-lucide="file-text"></i> PDF
+                    Report</button>
+                  <button class="btn btn-primary" id="btnAcceptUpload"><i data-lucide="check"></i> Confirm & View
+                    History</button>
                 </div>
 
               </div>
@@ -881,10 +909,14 @@
                   <div><strong>Last Password Change:</strong> <span id="metaLastPwChange">Never</span></div>
                   <div><strong>OS:</strong> <span id="metaOs">Windows 11</span></div>
                   <div><strong>Browser:</strong> <span id="metaBrowser">Chrome 120</span></div>
-                  <div style="margin-top: 8px; border-top: 1px dashed var(--border-color); padding-top: 8px; display: flex; flex-direction: column; gap: 6px;">
-                    <div><strong>Country:</strong> <span id="metaCountry" style="color: var(--primary); font-weight: 600;">Global</span></div>
-                    <div><strong>Currency:</strong> <span id="metaCurrency" style="color: #0284c7; font-weight: 700;">USD ($)</span></div>
-                    <div><strong>Tax System:</strong> <span id="metaTaxSystem" style="color: #16a34a; font-weight: 600;">VAT</span></div>
+                  <div
+                    style="margin-top: 8px; border-top: 1px dashed var(--border-color); padding-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+                    <div><strong>Country:</strong> <span id="metaCountry"
+                        style="color: var(--primary); font-weight: 600;">Global</span></div>
+                    <div><strong>Currency:</strong> <span id="metaCurrency"
+                        style="color: #0284c7; font-weight: 700;">USD ($)</span></div>
+                    <div><strong>Tax System:</strong> <span id="metaTaxSystem"
+                        style="color: #16a34a; font-weight: 600;">VAT</span></div>
                   </div>
                 </div>
               </div>
@@ -934,7 +966,9 @@
                     <div style="position: relative;">
                       <input type="text" id="profCurrency" class="form-control" readonly placeholder="USD ($)"
                         style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px; background: #f8fafc; font-weight: 600; color: #0284c7;">
-                      <span id="profCurrencyBadge" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 10px; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 10px; font-weight: 600;">From Country</span>
+                      <span id="profCurrencyBadge"
+                        style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 10px; background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 10px; font-weight: 600;">From
+                        Country</span>
                     </div>
                   </div>
                   <div class="form-group-validation">
@@ -1930,15 +1964,16 @@
         <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;">
           <label class="form-label" for="resetToken"
             style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Reset Token</label>
-          <input type="text" id="resetToken" class="form-control" placeholder="Enter token from recovery email or response"
-            required
+          <input type="text" id="resetToken" class="form-control"
+            placeholder="Enter token from recovery email or response" required
             style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
         </div>
         <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;">
           <label class="form-label" for="resetNewPassword"
             style="font-size: 12px; font-weight: 600; color: var(--text-muted);">New Password</label>
           <div style="position: relative;">
-            <input type="password" id="resetNewPassword" class="form-control" placeholder="••••••••" required minlength="8"
+            <input type="password" id="resetNewPassword" class="form-control" placeholder="••••••••" required
+              minlength="8"
               style="padding: 10px 40px 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px; width: 100%;">
             <button type="button" id="toggleResetNewPassword" aria-label="Toggle password visibility"
               style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); border: none; background: transparent; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center;">
@@ -1950,7 +1985,8 @@
           <label class="form-label" for="resetConfirmPassword"
             style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Confirm Password</label>
           <div style="position: relative;">
-            <input type="password" id="resetConfirmPassword" class="form-control" placeholder="••••••••" required minlength="8"
+            <input type="password" id="resetConfirmPassword" class="form-control" placeholder="••••••••" required
+              minlength="8"
               style="padding: 10px 40px 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px; width: 100%;">
             <button type="button" id="toggleResetConfirmPassword" aria-label="Toggle confirm password visibility"
               style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); border: none; background: transparent; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center;">
@@ -1980,7 +2016,8 @@
         <i data-lucide="alert-triangle" style="width: 24px; height: 24px; color: #f59e0b;"></i>
         <span style="font-size: 16px; color: #1e293b;">Account Already Exists</span>
       </div>
-      <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin: 0;">An account with this email address already
+      <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin: 0;">An account with this email
+        address already
         exists in TaxAudit. You can sign in directly, change your email, or reset your password.</p>
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <button type="button" class="btn btn-primary" id="conflictSignInBtn"
@@ -2000,7 +2037,8 @@
     style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); align-items: center; justify-content: center; z-index: 2000;">
     <div
       style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); width: 100%; max-width: 420px; padding: 28px; position: relative; display: flex; flex-direction: column; gap: 16px; text-align: center;">
-      <div style="width: 56px; height: 56px; border-radius: 50%; background: #dcfce7; color: #16a34a; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+      <div
+        style="width: 56px; height: 56px; border-radius: 50%; background: #dcfce7; color: #16a34a; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
         <i data-lucide="check-circle" style="width: 32px; height: 32px;"></i>
       </div>
       <h3 style="font-size: 18px; font-weight: 700; color: #1e293b; margin: 0;">Account Created Successfully!</h3>
@@ -2020,7 +2058,8 @@
     style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(6px); align-items: center; justify-content: center; z-index: 2500;">
     <div
       style="background: white; border-radius: var(--radius-lg); width: 100%; max-width: 420px; padding: 28px 24px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center; margin: 16px; border: 1px solid #fee2e2;">
-      <div style="width: 56px; height: 56px; border-radius: 50%; background: #fef2f2; color: #dc2626; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto; border: 2px solid #fecaca;">
+      <div
+        style="width: 56px; height: 56px; border-radius: 50%; background: #fef2f2; color: #dc2626; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto; border: 2px solid #fecaca;">
         <i data-lucide="alert-triangle" style="width: 28px; height: 28px;"></i>
       </div>
       <h3 style="font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">Incorrect Password</h3>
@@ -2028,11 +2067,10 @@
         The password you entered is incorrect. Please verify your credentials and try again.
       </p>
       <div style="display: flex; gap: 12px;">
-        <button type="button" id="closeLoginErrorModalBtn" class="btn btn-primary"
-          onclick="closeLoginErrorModal()"
-          style="flex: 1; padding: 12px; font-weight: 600; font-size: 13px; background: #dc2626; border-color: #dc2626;">Try Again</button>
-        <button type="button" id="loginErrorForgotBtn" class="btn btn-outline"
-          onclick="goToForgotPasswordFromError()"
+        <button type="button" id="closeLoginErrorModalBtn" class="btn btn-primary" onclick="closeLoginErrorModal()"
+          style="flex: 1; padding: 12px; font-weight: 600; font-size: 13px; background: #dc2626; border-color: #dc2626;">Try
+          Again</button>
+        <button type="button" id="loginErrorForgotBtn" class="btn btn-outline" onclick="goToForgotPasswordFromError()"
           style="flex: 1; padding: 12px; font-weight: 600; font-size: 13px;">Forgot Password?</button>
       </div>
     </div>
@@ -2049,36 +2087,55 @@
       <div style="display: flex; align-items: center; gap: 12px;">
         <div class="logo-icon" style="width: 38px; height: 38px; font-size: 18px;">T</div>
         <div>
-          <h3 style="font-size: 18px; font-weight: 700; color: #1e293b; margin: 0;">Smart Tax Invoice Validation Demo</h3>
-          <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Next-generation automated compliance auditing engine</p>
+          <h3 style="font-size: 18px; font-weight: 700; color: #1e293b; margin: 0;">Smart Tax Invoice Validation Demo
+          </h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Next-generation automated compliance auditing
+            engine</p>
         </div>
       </div>
-      <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+      <div
+        style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; display: flex; flex-direction: column; gap: 14px;">
         <div style="display: flex; gap: 12px; align-items: flex-start;">
-          <div style="background: #e0e7ff; color: #4338ca; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">1</div>
+          <div
+            style="background: #e0e7ff; color: #4338ca; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">
+            1</div>
           <div>
-            <h4 style="font-size: 13px; font-weight: 600; color: #1e293b; margin: 0 0 2px 0;">OCR Document Extraction</h4>
-            <p style="font-size: 12px; color: var(--text-muted); margin: 0;">High-accuracy optical character recognition pulls invoice number, supplier details, line items, and totals directly from PDFs or scanned photos.</p>
+            <h4 style="font-size: 13px; font-weight: 600; color: #1e293b; margin: 0 0 2px 0;">OCR Document Extraction
+            </h4>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 0;">High-accuracy optical character recognition
+              pulls invoice number, supplier details, line items, and totals directly from PDFs or scanned photos.</p>
           </div>
         </div>
         <div style="display: flex; gap: 12px; align-items: flex-start;">
-          <div style="background: #e0e7ff; color: #4338ca; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">2</div>
+          <div
+            style="background: #e0e7ff; color: #4338ca; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">
+            2</div>
           <div>
-            <h4 style="font-size: 13px; font-weight: 600; color: #1e293b; margin: 0 0 2px 0;">Multi-Jurisdiction Tax System Engine</h4>
-            <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Validates GSTIN in India, VAT in South Africa and the UK, TRN in UAE, and Canadian federal/provincial GST/HST/PST combinations against legal mathematical brackets.</p>
+            <h4 style="font-size: 13px; font-weight: 600; color: #1e293b; margin: 0 0 2px 0;">Multi-Jurisdiction Tax
+              System Engine</h4>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Validates GSTIN in India, VAT in South
+              Africa and the UK, TRN in UAE, and Canadian federal/provincial GST/HST/PST combinations against legal
+              mathematical brackets.</p>
           </div>
         </div>
         <div style="display: flex; gap: 12px; align-items: flex-start;">
-          <div style="background: #e0e7ff; color: #4338ca; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">3</div>
+          <div
+            style="background: #e0e7ff; color: #4338ca; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">
+            3</div>
           <div>
-            <h4 style="font-size: 13px; font-weight: 600; color: #1e293b; margin: 0 0 2px 0;">Real-Time Anomaly & Duplicate Detection</h4>
-            <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Flags duplicate submissions across a rolling 90-day archive, identifies mismatched tax rates, and scores risk automatically.</p>
+            <h4 style="font-size: 13px; font-weight: 600; color: #1e293b; margin: 0 0 2px 0;">Real-Time Anomaly &
+              Duplicate Detection</h4>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Flags duplicate submissions across a
+              rolling 90-day archive, identifies mismatched tax rates, and scores risk automatically.</p>
           </div>
         </div>
       </div>
       <div style="display: flex; justify-content: flex-end; gap: 10px;">
-        <button type="button" class="btn btn-outline" onclick="document.getElementById('demoModal').style.display = 'none'">Close</button>
-        <button type="button" class="btn btn-primary" onclick="document.getElementById('demoModal').style.display = 'none'; showAuthCard('signupCard')">Get Started Free</button>
+        <button type="button" class="btn btn-outline"
+          onclick="document.getElementById('demoModal').style.display = 'none'">Close</button>
+        <button type="button" class="btn btn-primary"
+          onclick="document.getElementById('demoModal').style.display = 'none'; showAuthCard('signupCard')">Get Started
+          Free</button>
       </div>
     </div>
   </div>
