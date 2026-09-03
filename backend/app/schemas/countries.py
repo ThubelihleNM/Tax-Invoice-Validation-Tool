@@ -40,6 +40,8 @@ class CountryTaxConfigResponse(BaseModel):
     currency: CurrencyResponse
     tax_number_label: str
     default_rate: Optional[TaxRateResponse] = None
+    is_primary: bool = True
+    description: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -50,6 +52,32 @@ class CountryResponse(BaseModel):
     code: str
     phone_code: Optional[PhoneCodeResponse] = None
     tax_config: Optional[CountryTaxConfigResponse] = None
+    tax_configs: List[CountryTaxConfigResponse] = []
 
     class Config:
         from_attributes = True
+
+class CountryTaxSystemOption(BaseModel):
+    tax_system_id: int
+    tax_system_code: str
+    tax_system_name: str
+    tax_number_label: str
+    currency_code: str
+    currency_symbol: str
+    default_rate: Optional[Decimal] = None
+    default_rate_name: Optional[str] = None
+    is_primary: bool = True
+    description: Optional[str] = None
+
+class CountryConfigurationResponse(BaseModel):
+    id: int
+    name: str
+    code: str
+    phone_code: Optional[str] = None
+    currency_code: Optional[str] = None
+    currency_symbol: Optional[str] = None
+    tax_system: Optional[str] = None
+    tax_system_name: Optional[str] = None
+    tax_number_label: Optional[str] = None
+    default_rate: Optional[Decimal] = None
+    tax_systems: List[CountryTaxSystemOption] = []

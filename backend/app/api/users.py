@@ -48,7 +48,10 @@ class ProfileUpdateRequest(BaseModel):
     # SaaS onboarding fields
     business_registration_number: Optional[str] = None
     tax_number: Optional[str] = None
+    tax_system: Optional[str] = None
     occupation: Optional[str] = None
+    profession: Optional[str] = None
+    country_code: Optional[str] = None
 
 
 @router.get("", response_model=UserListResponse)
@@ -162,7 +165,10 @@ def update_profile(
         report_notifications=data.report_notifications,
         business_registration_number=data.business_registration_number,
         tax_number=data.tax_number,
-        occupation=data.occupation
+        tax_system=data.tax_system,
+        occupation=data.occupation,
+        profession=data.profession,
+        country_code=data.country_code
     )
     return user_service.update_user(db, current_user.id, current_user.id, user_in)
 

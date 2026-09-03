@@ -82,11 +82,11 @@ function goBackToLanding() {
   document.getElementById("landingPageContainer").style.display = "block";
 }
 window.goBackToLanding = goBackToLanding;
-window.handleLoginSubmit = handleLoginSubmit;
-window.handleSignupSubmit = handleSignupSubmit;
-window.handleForgotSubmit = handleForgotSubmit;
-window.handleResetSubmit = handleResetSubmit;
-window.showAuthCard = showAuthCard;
+
+// Shared country selection state
+let countriesList = [];
+let selectedPersonalCountry = null;
+let selectedCompanyCountry = null;
 
 function setSignupAccountType(type) {
   const hiddenType = document.getElementById("signupAccountType");
@@ -169,41 +169,70 @@ function showAuthCard(cardId) {
   });
 }
 
-// Client-side Session Route Guard
-function checkAuthState() {
+// // Client-side Session Route Guard with Authoritative Backend Verification
+async function checkAuthState() {
   const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
   const mainWorkspace = document.getElementById("mainWorkspaceContainer");
   const authContainer = document.getElementById("authContainer");
   const landingPage = document.getElementById("landingPageContainer");
 
   if (!token) {
-    mainWorkspace.style.display = "none";
-    if (authContainer.style.display === "flex") {
-      landingPage.style.display = "none";
+    if (mainWorkspace) mainWorkspace.style.display = "none";
+    if (authContainer && authContainer.style.display === "flex") {
+      if (landingPage) landingPage.style.display = "none";
     } else {
-      landingPage.style.display = "block";
-      authContainer.style.display = "none";
+      if (landingPage) landingPage.style.display = "block";
+      if (authContainer) authContainer.style.display = "none";
     }
-  } else {
-    if (landingPage) landingPage.style.display = "none";
-    authContainer.style.display = "none";
-    mainWorkspace.style.display = "flex";
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+
+    if (!res.ok) {
+      // Token is invalid, expired, or user revoked
+      localStorage.removeItem("auth_token");
+      sessionStorage.removeItem("auth_token");
+      if (mainWorkspace) mainWorkspace.style.display = "none";
+      if (landingPage) landingPage.style.display = "block";
+      if (authContainer) authContainer.style.display = "none";
+      return;
+    }
+
+    const user = await res.json();
     
+    // Save authoritative backend verified profile
+    localStorage.setItem("user_id", user.id);
+    localStorage.setItem("user_first_name", user.first_name || "");
+    localStorage.setItem("user_last_name", user.last_name || "");
+    localStorage.setItem("user_email", user.email);
+    localStorage.setItem("user_role", user.role || "Auditor");
+    localStorage.setItem("user_account_type", user.account_type || "PERSONAL");
+    localStorage.setItem("user_country", user.country || "");
+    localStorage.setItem("user_tax_system", user.tax_system || "");
+
+    if (landingPage) landingPage.style.display = "none";
+    if (authContainer) authContainer.style.display = "none";
+    if (mainWorkspace) mainWorkspace.style.display = "flex";
+
     // Bind profile card info
-    const firstName = localStorage.getItem("user_first_name") || "Jane";
-    const lastName = localStorage.getItem("user_last_name") || "Doe";
-    const email = localStorage.getItem("user_email") || "jane.doe@enterprise.com";
-    const role = localStorage.getItem("user_role") || "Auditor";
-    const accountType = localStorage.getItem("user_account_type") || "PERSONAL";
+    const firstName = user.first_name || "User";
+    const lastName = user.last_name || "";
+    const email = user.email;
+    const role = user.role || "Auditor";
+    const accountType = user.account_type || "PERSONAL";
     const isPersonal = accountType === "PERSONAL";
 
-    document.querySelectorAll(".user-name").forEach(el => el.textContent = `${firstName} ${lastName}`);
+    document.querySelectorAll(".user-name").forEach(el => el.textContent = `${firstName} ${lastName}`.trim());
     document.querySelectorAll(".user-email").forEach(el => el.textContent = email);
     
-    const initials = (firstName[0] || "") + (lastName[0] || "");
+    const initials = ((firstName[0] || "") + (lastName[0] || firstName[1] || "")).toUpperCase();
     document.querySelectorAll(".avatar").forEach(el => {
       if (el.id !== "profilePreviewImage") {
-        el.textContent = initials.toUpperCase();
+        el.textContent = initials || "TA";
       }
     });
 
@@ -215,7 +244,7 @@ function checkAuthState() {
 
     const quickUpload = document.getElementById("quickUploadBtn");
     if (quickUpload) {
-      quickUpload.style.display = "block"; // Personal users can upload too!
+      quickUpload.style.display = "block";
     }
 
     // Allow history and reports for all users
@@ -239,11 +268,63 @@ function checkAuthState() {
 
     const jobTitleLabel = document.getElementById("profJobTitle")?.previousElementSibling;
     if (jobTitleLabel) {
-      jobTitleLabel.textContent = isPersonal ? "Occupation" : "Job Title";
+      jobTitleLabel.textContent = isPersonal ? "Occupation / Profession" : "Job Title";
     }
 
     // Refresh dynamic data
     loadAllBackendDatasets();
+    loadUserNotifications();
+  } catch (err) {
+    console.error("Auth state check network error:", err);
+  }
+}
+
+async function handleLoginSubmit() {
+  const emailInput = document.getElementById("loginEmail");
+  const passwordInput = document.getElementById("loginPassword");
+  const email = emailInput ? emailInput.value.trim() : "";
+  const password = passwordInput ? passwordInput.value : "";
+  const rememberMe = document.getElementById("loginRememberMe") ? document.getElementById("loginRememberMe").checked : false;
+
+  if (!email) {
+    showToast("Please enter your email address.");
+    if (emailInput) emailInput.focus();
+    return;
+  }
+
+  if (password.length < 8) {
+    showToast("Password must be at least 8 characters long.");
+    if (passwordInput) passwordInput.focus();
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, remember_me: rememberMe })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem("auth_token", data.access_token);
+      if (data.refresh_token) {
+        localStorage.setItem("refresh_token", data.refresh_token);
+      }
+      
+      showToast("Access granted successfully.");
+      await checkAuthState();
+    } else {
+      // Clear password field on error and keep user on login page
+      if (passwordInput) {
+        passwordInput.value = "";
+        passwordInput.focus();
+      }
+      showToast(data.detail || "Incorrect email or password.");
+    }
+  } catch (err) {
+    showToast("Unable to connect to login authentication service.");
   }
 }
 
@@ -278,102 +359,139 @@ async function loadAllBackendDatasets() {
 // Authentication Request Form Handlers
 // ==========================================
 
-async function handleLoginSubmit() {
-  const email = document.getElementById("loginEmail").value.trim();
-  const password = document.getElementById("loginPassword").value;
-  const rememberMe = document.getElementById("loginRememberMe").checked;
-
-  if (password.length < 8) {
-    showToast("Password must be at least 8 characters long.");
-    return;
-  }
-
-  try {
-    const res = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, remember_me: rememberMe })
-    });
-
-    const data = await res.json();
-    if (res.ok) {
-      const storage = rememberMe ? localStorage : sessionStorage;
-      storage.setItem("auth_token", data.access_token);
-      
-      localStorage.setItem("user_first_name", data.user.first_name);
-      localStorage.setItem("user_last_name", data.user.last_name);
-      localStorage.setItem("user_email", data.user.email);
-      localStorage.setItem("user_role", data.role || data.user.role || "Auditor");
-      localStorage.setItem("user_account_type", data.user.account_type || "PERSONAL");
-      
-      showToast("Access granted successfully.");
-      checkAuthState();
-    } else {
-      showToast(data.detail || "Invalid login credentials.");
-    }
-  } catch (err) {
-    showToast("Unable to connect to login authentication service.");
-  }
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 async function handleSignupSubmit() {
-  const accountType = document.getElementById("signupAccountType").value;
-  const password = document.getElementById("signupPassword").value;
-  const confirmPassword = document.getElementById("signupConfirmPassword").value;
+  const accountType = document.getElementById("signupAccountType") ? document.getElementById("signupAccountType").value : "PERSONAL";
+  const passInput = document.getElementById("signupPassword");
+  const confirmInput = document.getElementById("signupConfirmPassword");
+  const password = passInput ? passInput.value : "";
+  const confirmPassword = confirmInput ? confirmInput.value : "";
+
+  const isCompany = accountType === "COMPANY";
+  const countryInputId = isCompany ? "signupCompanyCountry" : "signupCountry";
+  const typedCountryName = document.getElementById(countryInputId) ? document.getElementById(countryInputId).value.trim() : "";
+
+  let countryObj = isCompany ? selectedCompanyCountry : selectedPersonalCountry;
+  if (!countryObj && typedCountryName && countriesList.length > 0) {
+    countryObj = countriesList.find(c => 
+      c.name.toLowerCase() === typedCountryName.toLowerCase() ||
+      c.code.toLowerCase() === typedCountryName.toLowerCase()
+    );
+  }
+
+  if (!countryObj && !typedCountryName) {
+    showToast("Please enter and select your country.");
+    const inputField = document.getElementById(countryInputId);
+    if (inputField) inputField.focus();
+    return;
+  }
 
   if (password.length < 8) {
     showToast("Password must be at least 8 characters long.");
+    if (passInput) passInput.focus();
     return;
   }
 
   if (password !== confirmPassword) {
-    showToast("Password confirmation mismatch.");
+    showToast("Password confirmation mismatch. Please verify both passwords.");
+    if (confirmInput) confirmInput.focus();
     return;
   }
 
-  let signupPayload = {};
+  const pwChecks = [
+    password.length >= 8,
+    /[A-Z]/.test(password),
+    /[a-z]/.test(password),
+    /[0-9]/.test(password),
+    /[^A-Za-z0-9]/.test(password)
+  ];
+  if (pwChecks.filter(Boolean).length < 4) {
+    showToast("Password must include uppercase, lowercase, numbers, and symbols.");
+    return;
+  }
 
-  if (accountType === "PERSONAL") {
-    const firstName = document.getElementById("signupFirstName").value.trim();
-    const lastName = document.getElementById("signupLastName").value.trim();
-    const email = document.getElementById("signupEmail").value.trim();
-    const phone = document.getElementById("signupPhone").value.trim();
-    const country = document.getElementById("signupCountry").value.trim();
-    const occupation = document.getElementById("signupOccupation").value.trim();
+  // Determine tax system from select or country primary config
+  let chosenTaxSystem = null;
+  if (isCompany) {
+    const compTaxSelect = document.getElementById("signupCompanyTaxSystemSelect");
+    const compTaxWrapper = document.getElementById("signupCompanyTaxSystemWrapper");
+    if (compTaxWrapper && compTaxWrapper.style.display !== "none" && compTaxSelect) {
+      chosenTaxSystem = compTaxSelect.value;
+    }
+  } else {
+    const persTaxSelect = document.getElementById("signupTaxSystemSelect");
+    const persTaxWrapper = document.getElementById("signupTaxSystemWrapper");
+    if (persTaxWrapper && persTaxWrapper.style.display !== "none" && persTaxSelect) {
+      chosenTaxSystem = persTaxSelect.value;
+    }
+  }
+
+  if (!chosenTaxSystem && countryObj && countryObj.tax_config) {
+    chosenTaxSystem = countryObj.tax_config.tax_system.code;
+  }
+
+  let payload = {};
+  if (!isCompany) {
+    const firstName = document.getElementById("signupFirstName") ? document.getElementById("signupFirstName").value.trim() : "";
+    const lastName = document.getElementById("signupLastName") ? document.getElementById("signupLastName").value.trim() : "";
+    const email = document.getElementById("signupEmail") ? document.getElementById("signupEmail").value.trim() : "";
+    const phone = document.getElementById("signupPhone") ? document.getElementById("signupPhone").value.trim() : "";
+    const occupation = document.getElementById("signupOccupation") ? document.getElementById("signupOccupation").value.trim() : "";
+    const profession = document.getElementById("signupProfession") ? document.getElementById("signupProfession").value.trim() : "";
 
     if (!firstName || !lastName || !email) {
-      showToast("Please fill in all required personal fields.");
+      showToast("Please fill in First Name, Last Name, and Email.");
       return;
     }
 
-    signupPayload = {
+    const phoneCodeSpan = document.getElementById("signupPhoneCode");
+    const phonePrefix = phoneCodeSpan && phoneCodeSpan.style.display !== "none" ? phoneCodeSpan.textContent : "";
+    const fullPhone = phonePrefix && phone ? (phone.startsWith("+") ? phone : phonePrefix + phone) : phone;
+
+    payload = {
       account_type: "PERSONAL",
       first_name: firstName,
       last_name: lastName,
       email: email,
-      phone: phone,
-      country: country,
-      occupation: occupation,
-      password: password
+      phone: fullPhone || undefined,
+      country: countryObj ? countryObj.name : typedCountryName,
+      country_code: countryObj ? countryObj.code : undefined,
+      tax_system: chosenTaxSystem || undefined,
+      occupation: occupation || undefined,
+      profession: profession || undefined,
+      password: password,
+      confirm_password: confirmPassword
     };
   } else {
-    const companyName = document.getElementById("signupCompanyName").value.trim();
-    const businessReg = document.getElementById("signupBusinessReg").value.trim();
-    const taxNumber = document.getElementById("signupTaxNumber").value.trim();
-    const firstName = document.getElementById("signupContactFirstName").value.trim();
-    const lastName = document.getElementById("signupContactLastName").value.trim();
-    const email = document.getElementById("signupBusinessEmail").value.trim();
-    const phone = document.getElementById("signupCompanyPhone").value.trim();
-    const country = document.getElementById("signupCompanyCountry").value.trim();
-    const city = document.getElementById("signupCompanyCity").value.trim();
-    const address = document.getElementById("signupCompanyAddress").value.trim();
+    const companyName = document.getElementById("signupCompanyName") ? document.getElementById("signupCompanyName").value.trim() : "";
+    const businessReg = document.getElementById("signupBusinessReg") ? document.getElementById("signupBusinessReg").value.trim() : "";
+    const taxNumber = document.getElementById("signupTaxNumber") ? document.getElementById("signupTaxNumber").value.trim() : "";
+    const firstName = document.getElementById("signupContactFirstName") ? document.getElementById("signupContactFirstName").value.trim() : "";
+    const lastName = document.getElementById("signupContactLastName") ? document.getElementById("signupContactLastName").value.trim() : "";
+    const email = document.getElementById("signupBusinessEmail") ? document.getElementById("signupBusinessEmail").value.trim() : "";
+    const phone = document.getElementById("signupCompanyPhone") ? document.getElementById("signupCompanyPhone").value.trim() : "";
+    const city = document.getElementById("signupCompanyCity") ? document.getElementById("signupCompanyCity").value.trim() : "";
+    const address = document.getElementById("signupCompanyAddress") ? document.getElementById("signupCompanyAddress").value.trim() : "";
 
     if (!companyName || !businessReg || !taxNumber || !firstName || !lastName || !email) {
-      showToast("Please fill in all required company fields.");
+      showToast("Please fill in Company Name, Reg Number, Tax ID, Contact Name, and Business Email.");
       return;
     }
 
-    signupPayload = {
+    const phoneCodeSpan = document.getElementById("signupCompanyPhoneCode");
+    const phonePrefix = phoneCodeSpan && phoneCodeSpan.style.display !== "none" ? phoneCodeSpan.textContent : "";
+    const fullPhone = phonePrefix && phone ? (phone.startsWith("+") ? phone : phonePrefix + phone) : phone;
+
+    payload = {
       account_type: "COMPANY",
       company_name: companyName,
       business_registration_number: businessReg,
@@ -381,11 +499,14 @@ async function handleSignupSubmit() {
       first_name: firstName,
       last_name: lastName,
       email: email,
-      phone: phone,
-      country: country,
-      city: city,
-      address: address,
-      password: password
+      phone: fullPhone || undefined,
+      country: countryObj ? countryObj.name : typedCountryName,
+      country_code: countryObj ? countryObj.code : undefined,
+      tax_system: chosenTaxSystem || undefined,
+      city: city || undefined,
+      address: address || undefined,
+      password: password,
+      confirm_password: confirmPassword
     };
   }
 
@@ -393,30 +514,52 @@ async function handleSignupSubmit() {
     const res = await fetch(`${API_BASE_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(signupPayload)
+      body: JSON.stringify(payload)
     });
 
     const data = await res.json();
-    if (res.ok) {
-      localStorage.setItem("auth_token", data.access_token);
-      localStorage.setItem("user_first_name", data.user.first_name);
-      localStorage.setItem("user_last_name", data.user.last_name);
-      localStorage.setItem("user_email", data.user.email);
-      localStorage.setItem("user_role", data.role || data.user.role || "Auditor");
-      localStorage.setItem("user_account_type", data.user.account_type || "PERSONAL");
+    if (res.status === 409) {
+      const conflictModal = document.getElementById("conflictModal");
+      if (conflictModal) conflictModal.style.display = "flex";
+    } else if (res.ok) {
+      // Clear passwords in signup form
+      if (passInput) passInput.value = "";
+      if (confirmInput) confirmInput.value = "";
       
-      showToast("Account created successfully");
-      checkAuthState();
+      // Pre-populate login email
+      const loginEmailInput = document.getElementById("loginEmail");
+      if (loginEmailInput) loginEmailInput.value = payload.email;
+
+      // Show Registration Successful Modal
+      const successModal = document.getElementById("registrationSuccessModal");
+      const successMsg = document.getElementById("registrationSuccessMsg");
+      if (successMsg) {
+        const taxSysMsg = payload.tax_system ? ` Tax System: ${payload.tax_system}.` : "";
+        successMsg.textContent = `Your account for ${payload.first_name} ${payload.last_name} (${payload.country || 'Global'}${taxSysMsg}) has been successfully created. Please sign in to access your workspace.`;
+      }
+      if (successModal) {
+        successModal.style.display = "flex";
+      } else {
+        showToast("Registration Successful! Please sign in.");
+        showAuthCard("loginCard");
+      }
     } else {
-      showToast(data.detail || "Registration failed.");
+      showToast(data.detail || "Registration failed. Please check your fields.");
     }
   } catch (err) {
-    showToast("Failed to connect to sign-up registry.");
+    showToast("Connection to authentication server failed.");
   }
 }
 
 async function handleForgotSubmit() {
-  const email = document.getElementById("forgotEmail").value.trim();
+  const emailInput = document.getElementById("forgotEmail");
+  const email = emailInput ? emailInput.value.trim() : "";
+
+  if (!email) {
+    showToast("Please enter your registered email address.");
+    if (emailInput) emailInput.focus();
+    return;
+  }
 
   try {
     const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
@@ -427,14 +570,14 @@ async function handleForgotSubmit() {
 
     const data = await res.json();
     if (res.ok) {
-      showToast("Recovery token generated successfully.");
+      showToast(data.message || "Password recovery instructions have been sent.");
       showAuthCard("resetCard");
       const tokenInput = document.getElementById("resetToken");
       if (tokenInput && data.reset_token) {
         tokenInput.value = data.reset_token;
       }
     } else {
-      showToast(data.detail || "Email lookup failed.");
+      showToast(data.detail || "Unable to process recovery request.");
     }
   } catch (err) {
     showToast("Server recovery route offline.");
@@ -442,12 +585,29 @@ async function handleForgotSubmit() {
 }
 
 async function handleResetSubmit() {
-  const token = document.getElementById("resetToken").value.trim();
-  const newPassword = document.getElementById("resetNewPassword").value;
-  const confirmPassword = document.getElementById("resetConfirmPassword").value;
+  const tokenInput = document.getElementById("resetToken");
+  const newPasswordInput = document.getElementById("resetNewPassword");
+  const confirmPasswordInput = document.getElementById("resetConfirmPassword");
+
+  const token = tokenInput ? tokenInput.value.trim() : "";
+  const newPassword = newPasswordInput ? newPasswordInput.value : "";
+  const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value : "";
+
+  if (!token) {
+    showToast("Please enter your password reset token.");
+    if (tokenInput) tokenInput.focus();
+    return;
+  }
+
+  if (newPassword.length < 8) {
+    showToast("Password must be at least 8 characters long.");
+    if (newPasswordInput) newPasswordInput.focus();
+    return;
+  }
 
   if (newPassword !== confirmPassword) {
-    showToast("Passwords do not match.");
+    showToast("Password confirmation mismatch. Please verify both passwords.");
+    if (confirmPasswordInput) confirmPasswordInput.focus();
     return;
   }
 
@@ -460,10 +620,13 @@ async function handleResetSubmit() {
 
     const data = await res.json();
     if (res.ok) {
-      showToast("New password saved successfully! Please sign in.");
+      showToast(data.message || "New password saved successfully! Please sign in.");
       showAuthCard("loginCard");
+      if (newPasswordInput) newPasswordInput.value = "";
+      if (confirmPasswordInput) confirmPasswordInput.value = "";
+      if (tokenInput) tokenInput.value = "";
     } else {
-      showToast(data.detail || "Reset failed.");
+      showToast(data.detail || "Reset failed. The token may be expired or invalid.");
     }
   } catch (err) {
     showToast("Server password reset route offline.");
@@ -476,14 +639,22 @@ async function handleLogout() {
       method: "POST",
       headers: getAuthHeaders()
     });
-  } catch (err) {
-    console.warn("Client logged out locally.");
+  } catch (e) {
+    // Ignore network failure during logout
   }
-  
-  localStorage.clear();
-  sessionStorage.clear();
+  localStorage.removeItem("auth_token");
+  sessionStorage.removeItem("auth_token");
+  localStorage.removeItem("refresh_token");
+  showToast("Logged out successfully.");
   checkAuthState();
 }
+
+window.handleLoginSubmit = handleLoginSubmit;
+window.handleSignupSubmit = handleSignupSubmit;
+window.handleForgotSubmit = handleForgotSubmit;
+window.handleResetSubmit = handleResetSubmit;
+window.showAuthCard = showAuthCard;
+window.handleLogout = handleLogout;
 
 // ==========================================
 // Database Query Mappings
@@ -2510,26 +2681,26 @@ function formatLogTime(dateStr) {
 
 // Upgraded Signup Features for Single-Page HTML App
 function initLegacySignupUpgrade() {
-  let countriesList = [];
-  let selectedCountry = null;
 
-  // 1. Fetch country profiles
+  // 1. Fetch country profiles from backend
   fetch(`${API_BASE_URL}/countries`)
     .then(res => res.json())
     .then(data => {
       if (Array.isArray(data)) {
         countriesList = data;
-        setupCountryDropdown("signupCountry", "signupCountryDropdown", "signupPhoneCode", "signupCountryTaxSummary");
-        setupCountryDropdown("signupCompanyCountry", "signupCompanyCountryDropdown", "signupCompanyPhoneCode", "signupCompanyCountryTaxSummary");
+        setupCountryDropdown("signupCountry", "signupCountryDropdown", "signupPhoneCode", "signupCountryTaxSummary", "signupTaxSystemWrapper", "signupTaxSystemSelect", false);
+        setupCountryDropdown("signupCompanyCountry", "signupCompanyCountryDropdown", "signupCompanyPhoneCode", "signupCompanyCountryTaxSummary", "signupCompanyTaxSystemWrapper", "signupCompanyTaxSystemSelect", true);
       }
     })
     .catch(err => console.error("Error loading countries config:", err));
 
-  function setupCountryDropdown(inputId, dropdownId, phoneCodeId, taxSummaryId) {
+  function setupCountryDropdown(inputId, dropdownId, phoneCodeId, taxSummaryId, taxWrapperId, taxSelectId, isCompany) {
     const input = document.getElementById(inputId);
     const dropdown = document.getElementById(dropdownId);
     const phoneCodeSpan = document.getElementById(phoneCodeId);
     const taxSummary = document.getElementById(taxSummaryId);
+    const taxWrapper = document.getElementById(taxWrapperId);
+    const taxSelect = document.getElementById(taxSelectId);
 
     if (!input || !dropdown) return;
 
@@ -2555,7 +2726,8 @@ function initLegacySignupUpgrade() {
     function renderDropdown(filterText) {
       dropdown.innerHTML = "";
       const filtered = countriesList.filter(c => 
-        c.name.toLowerCase().includes(filterText.toLowerCase())
+        c.name.toLowerCase().includes(filterText.toLowerCase()) ||
+        c.code.toLowerCase().includes(filterText.toLowerCase())
       );
 
       if (filtered.length === 0) {
@@ -2570,7 +2742,7 @@ function initLegacySignupUpgrade() {
         item.style.fontSize = "13px";
         item.style.borderBottom = "1px solid #f1f5f9";
         item.className = "dropdown-item-c";
-        item.textContent = c.name;
+        item.innerHTML = `<strong>${c.name}</strong> <span style="font-size: 11px; color: var(--text-muted);">(${c.code})</span>`;
         
         item.addEventListener("mouseenter", () => {
           item.style.backgroundColor = "#f8fafc";
@@ -2582,7 +2754,11 @@ function initLegacySignupUpgrade() {
         item.addEventListener("click", () => {
           input.value = c.name;
           dropdown.style.display = "none";
-          selectedCountry = c;
+          if (isCompany) {
+            selectedCompanyCountry = c;
+          } else {
+            selectedPersonalCountry = c;
+          }
 
           // Auto country phone code prefix
           if (c.phone_code && c.phone_code.prefix) {
@@ -2593,23 +2769,36 @@ function initLegacySignupUpgrade() {
             phoneCodeSpan.style.display = "none";
           }
 
+          // Multi-tax system check (e.g. Canada GST, HST, PST)
+          const hasMultipleSystems = c.tax_configs && c.tax_configs.length > 1;
+          if (hasMultipleSystems && taxWrapper && taxSelect) {
+            taxSelect.innerHTML = c.tax_configs.map(cfg => {
+              const rateStr = cfg.default_rate ? ` (${cfg.default_rate.rate}%)` : '';
+              const label = cfg.description || `${cfg.tax_system.code} - ${cfg.tax_system.name}`;
+              return `<option value="${cfg.tax_system.code}">${label}${rateStr}</option>`;
+            }).join('');
+            taxWrapper.style.display = "block";
+          } else if (taxWrapper) {
+            taxWrapper.style.display = "none";
+          }
+
           // Dynamic country tax compliance card summary
           if (c.tax_config) {
             taxSummary.innerHTML = `
-              <strong>Selected Country Tax Compliance Profile Summary:</strong><br>
-              • Tax System: ${c.tax_config.tax_system.code} (${c.tax_config.tax_system.name})<br>
-              • Default Rate: ${c.tax_config.default_rate ? c.tax_config.default_rate.rate + '%' : 'N/A'}<br>
-              • Tax Label: ${c.tax_config.tax_number_label}<br>
-              • Currency: ${c.tax_config.currency.code} (${c.tax_config.currency.symbol})
+              <strong>Tax Compliance Profile (${c.name}):</strong><br>
+              • Determined Tax System: <strong>${c.tax_config.tax_system.code}</strong> (${c.tax_config.tax_system.name})<br>
+              • Standard Default Rate: <strong>${c.tax_config.default_rate ? c.tax_config.default_rate.rate + '%' : 'N/A'}</strong><br>
+              • Tax Identification Label: <strong>${c.tax_config.tax_number_label}</strong><br>
+              • Sovereign Currency: <strong>${c.tax_config.currency.code} (${c.tax_config.currency.symbol})</strong>
             `;
             taxSummary.style.display = "block";
 
-            // If it is company, update tax number field placeholder label dynamically
-            if (inputId === "signupCompanyCountry") {
+            // If it is company, update tax number field placeholder and label dynamically
+            if (isCompany) {
               const taxLabel = document.querySelector("label[for='signupTaxNumber']");
-              if (taxLabel) taxLabel.textContent = c.tax_config.tax_number_label;
+              if (taxLabel) taxLabel.textContent = `${c.tax_config.tax_number_label} *`;
               const taxInput = document.getElementById("signupTaxNumber");
-              if (taxInput) taxInput.placeholder = `Enter your ${c.tax_config.tax_number_label}`;
+              if (taxInput) taxInput.placeholder = `Enter official ${c.tax_config.tax_number_label}`;
             }
           } else {
             taxSummary.style.display = "none";
@@ -2620,10 +2809,12 @@ function initLegacySignupUpgrade() {
     }
   }
 
-  // 2. Password Show/Hide Toggles
+  // 2. Password Show/Hide Toggles for All Auth Cards
   setupPasswordToggle("toggleLoginPassword", "loginPassword");
   setupPasswordToggle("toggleSignupPassword", "signupPassword");
   setupPasswordToggle("toggleSignupConfirmPassword", "signupConfirmPassword");
+  setupPasswordToggle("toggleResetNewPassword", "resetNewPassword");
+  setupPasswordToggle("toggleResetConfirmPassword", "resetConfirmPassword");
 
   function setupPasswordToggle(buttonId, inputId) {
     const btn = document.getElementById(buttonId);
@@ -2638,7 +2829,7 @@ function initLegacySignupUpgrade() {
     });
   }
 
-  // 3. Live Password Strength indicator and checklists
+  // 3. Live Password Strength indicator and criteria checklists
   const passInput = document.getElementById("signupPassword");
   const confirmInput = document.getElementById("signupConfirmPassword");
   const strengthContainer = document.getElementById("signupPassStrengthContainer");
@@ -2649,11 +2840,11 @@ function initLegacySignupUpgrade() {
     passInput.addEventListener("input", () => {
       const pw = passInput.value;
       if (!pw) {
-        strengthContainer.style.display = "none";
+        if (strengthContainer) strengthContainer.style.display = "none";
         return;
       }
 
-      strengthContainer.style.display = "block";
+      if (strengthContainer) strengthContainer.style.display = "block";
       const checks = {
         length: pw.length >= 8,
         upper: /[A-Z]/.test(pw),
@@ -2662,7 +2853,6 @@ function initLegacySignupUpgrade() {
         special: /[^A-Za-z0-9]/.test(pw)
       };
 
-      // Style list indicators
       toggleCrit("crit-length", checks.length);
       toggleCrit("crit-upper", checks.upper);
       toggleCrit("crit-lower", checks.lower);
@@ -2671,20 +2861,22 @@ function initLegacySignupUpgrade() {
 
       const passed = Object.values(checks).filter(Boolean).length;
       let scorePercent = (passed / 5) * 100;
-      strengthBar.style.width = `${scorePercent}%`;
+      if (strengthBar) strengthBar.style.width = `${scorePercent}%`;
 
-      if (passed <= 2) {
-        strengthBar.style.backgroundColor = "#ef4444";
-        strengthLabel.textContent = "Weak";
-        strengthLabel.style.color = "#ef4444";
-      } else if (passed <= 4) {
-        strengthBar.style.backgroundColor = "#f59e0b";
-        strengthLabel.textContent = "Fair";
-        strengthLabel.style.color = "#f59e0b";
-      } else {
-        strengthBar.style.backgroundColor = "#22c55e";
-        strengthLabel.textContent = "Strong";
-        strengthLabel.style.color = "#22c55e";
+      if (strengthBar && strengthLabel) {
+        if (passed <= 2) {
+          strengthBar.style.backgroundColor = "#ef4444";
+          strengthLabel.textContent = "Weak";
+          strengthLabel.style.color = "#ef4444";
+        } else if (passed <= 4) {
+          strengthBar.style.backgroundColor = "#f59e0b";
+          strengthLabel.textContent = "Fair";
+          strengthLabel.style.color = "#f59e0b";
+        } else {
+          strengthBar.style.backgroundColor = "#22c55e";
+          strengthLabel.textContent = "Strong";
+          strengthLabel.style.color = "#22c55e";
+        }
       }
     });
   }
@@ -2696,131 +2888,112 @@ function initLegacySignupUpgrade() {
     el.style.fontWeight = isValid ? "700" : "500";
   }
 
-  // Override handleSignupSubmit to read country prefix code and display conflict dialog modal
+  // 4. Form Submission Handler
   const signupForm = document.getElementById("signupForm");
   if (signupForm) {
     signupForm.onsubmit = async (e) => {
       e.preventDefault();
-      
-      const accountType = document.getElementById("signupAccountType").value;
-      const password = passInput.value;
-      const confirmPassword = confirmInput.value;
-
-      if (!selectedCountry) {
-        showToast("Please select a valid country from the search dropdown list.");
-        return;
-      }
-
-      if (password !== confirmPassword) {
-        showToast("Password confirmation mismatch.");
-        return;
-      }
-
-      const pwChecks = [
-        password.length >= 8,
-        /[A-Z]/.test(password),
-        /[a-z]/.test(password),
-        /[0-9]/.test(password),
-        /[^A-Za-z0-9]/.test(password)
-      ];
-      if (pwChecks.filter(Boolean).length < 5) {
-        showToast("Please meet all password strength safety requirements.");
-        return;
-      }
-
-      let payload = {};
-      if (accountType === "PERSONAL") {
-        const firstName = document.getElementById("signupFirstName").value.trim();
-        const lastName = document.getElementById("signupLastName").value.trim();
-        const email = document.getElementById("signupEmail").value.trim();
-        const phone = document.getElementById("signupPhone").value.trim();
-        const occupation = document.getElementById("signupOccupation").value.trim();
-        const profession = document.getElementById("signupProfession").value.trim();
-
-        if (!firstName || !lastName || !email) {
-          showToast("Please fill in all required personal fields.");
-          return;
-        }
-
-        const phoneCodeSpan = document.getElementById("signupPhoneCode");
-        const phonePrefix = phoneCodeSpan && phoneCodeSpan.style.display !== "none" ? phoneCodeSpan.textContent : "";
-        const fullPhone = phonePrefix && phone ? phonePrefix + phone.replace(/^\+/, '') : phone;
-
-        payload = {
-          account_type: "PERSONAL",
-          first_name: firstName,
-          last_name: lastName,
-          email: email,
-          phone: fullPhone || undefined,
-          country: selectedCountry.name,
-          country_code: selectedCountry.code,
-          occupation: occupation || undefined,
-          profession: profession || undefined,
-          password: password
-        };
-      } else {
-        const companyName = document.getElementById("signupCompanyName").value.trim();
-        const businessReg = document.getElementById("signupBusinessReg").value.trim();
-        const taxNumber = document.getElementById("signupTaxNumber").value.trim();
-        const firstName = document.getElementById("signupContactFirstName").value.trim();
-        const lastName = document.getElementById("signupContactLastName").value.trim();
-        const email = document.getElementById("signupBusinessEmail").value.trim();
-        const phone = document.getElementById("signupCompanyPhone").value.trim();
-        const city = document.getElementById("signupCompanyCity").value.trim();
-        const address = document.getElementById("signupCompanyAddress").value.trim();
-
-        if (!companyName || !businessReg || !taxNumber || !firstName || !lastName || !email) {
-          showToast("Please fill in all required company fields.");
-          return;
-        }
-
-        const phoneCodeSpan = document.getElementById("signupCompanyPhoneCode");
-        const phonePrefix = phoneCodeSpan && phoneCodeSpan.style.display !== "none" ? phoneCodeSpan.textContent : "";
-        const fullPhone = phonePrefix && phone ? phonePrefix + phone.replace(/^\+/, '') : phone;
-
-        payload = {
-          account_type: "COMPANY",
-          company_name: companyName,
-          business_registration_number: businessReg,
-          tax_number: taxNumber,
-          first_name: firstName,
-          last_name: lastName,
-          email: email,
-          phone: fullPhone || undefined,
-          country: selectedCountry.name,
-          country_code: selectedCountry.code,
-          city: city || undefined,
-          address: address || undefined,
-          password: password
-        };
-      }
-
-      try {
-        const res = await fetch(`${API_BASE_URL}/auth/register`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await res.json();
-        if (res.status === 409) {
-          document.getElementById("conflictModal").style.display = "flex";
-        } else if (res.ok) {
-          localStorage.setItem("auth_token", data.access_token);
-          localStorage.setItem("user_first_name", data.user.first_name);
-          localStorage.setItem("user_last_name", data.user.last_name);
-          localStorage.setItem("user_email", data.user.email);
-          localStorage.setItem("user_role", data.role || data.user.role || "Auditor");
-          localStorage.setItem("user_account_type", data.user.account_type || "PERSONAL");
-          
-          showToast("Account created successfully");
-          checkAuthState();
-        } else {
-          showToast(data.detail || "Registration failed.");
-        }
-      } catch (err) {
-        showToast("Connection to authentication register server failed.");
-      }
+      await handleSignupSubmit();
     };
+  }
+
+  // 5. Duplicate Account Modal Buttons
+  const conflictUseAnotherBtn = document.getElementById("conflictUseAnotherEmailBtn");
+  if (conflictUseAnotherBtn) {
+    conflictUseAnotherBtn.addEventListener("click", () => {
+      const conflictModal = document.getElementById("conflictModal");
+      if (conflictModal) conflictModal.style.display = "none";
+      const accountType = document.getElementById("signupAccountType") ? document.getElementById("signupAccountType").value : "PERSONAL";
+      const emailField = accountType === "COMPANY" ? document.getElementById("signupBusinessEmail") : document.getElementById("signupEmail");
+      if (emailField) {
+        emailField.focus();
+        emailField.select();
+      }
+    });
+  }
+
+  // 6. Interactive Demo Modal
+  const watchDemoBtn = document.getElementById("heroWatchDemoBtn");
+  const demoModal = document.getElementById("demoModal");
+  if (watchDemoBtn && demoModal) {
+    watchDemoBtn.addEventListener("click", () => {
+      demoModal.style.display = "flex";
+    });
+  }
+
+  // 7. Notification Bell & Real Notifications Dropdown
+  const notifBtn = document.getElementById("notifBtn");
+  const notifDropdown = document.getElementById("headerNotificationsDropdown");
+  const markAllReadBtn = document.getElementById("markAllNotifsReadBtn");
+
+  if (notifBtn && notifDropdown) {
+    notifBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isVisible = notifDropdown.style.display === "flex";
+      notifDropdown.style.display = isVisible ? "none" : "flex";
+      if (!isVisible) {
+        loadUserNotifications();
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!notifDropdown.contains(e.target) && e.target !== notifBtn && !notifBtn.contains(e.target)) {
+        notifDropdown.style.display = "none";
+      }
+    });
+  }
+
+  if (markAllReadBtn) {
+    markAllReadBtn.addEventListener("click", async () => {
+      const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+      if (!token) return;
+      try {
+        await fetch(`${API_BASE_URL}/notifications/mark-all-read`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        loadUserNotifications();
+      } catch (err) {
+        console.error("Error marking notifications read:", err);
+      }
+    });
+  }
+}
+
+async function loadUserNotifications() {
+  const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+  if (!token) return;
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/notifications`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (!res.ok) return;
+
+    const data = await res.json();
+    const badgeDot = document.getElementById("notifBadgeDot");
+    if (badgeDot) {
+      badgeDot.style.display = data.unread_count > 0 ? "block" : "none";
+    }
+
+    const listContainer = document.getElementById("headerNotificationsList");
+    if (!listContainer) return;
+
+    if (!data.notifications || data.notifications.length === 0) {
+      listContainer.innerHTML = `<div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 12px;">No notifications at this time</div>`;
+      return;
+    }
+
+    listContainer.innerHTML = data.notifications.map(n => `
+      <div style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 4px; background: ${n.status === 'UNREAD' ? '#eff6ff' : '#ffffff'};">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <strong style="font-size: 12px; color: #1e293b;">${escapeHtml(n.title)}</strong>
+          <span style="font-size: 10px; color: var(--text-muted);">${formatLogTime(n.created_at || new Date())}</span>
+        </div>
+        <p style="margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.4;">${escapeHtml(n.message)}</p>
+      </div>
+    `).join('');
+  } catch (err) {
+    console.error("Error loading notifications:", err);
   }
 }

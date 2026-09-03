@@ -15,6 +15,7 @@ class UserBase(BaseModel):
     account_type: str = "PERSONAL"
     business_registration_number: Optional[str] = None
     tax_number: Optional[str] = None
+    tax_system: Optional[str] = None
     occupation: Optional[str] = None
     profession: Optional[str] = None
     country_code: Optional[str] = None
@@ -53,6 +54,7 @@ class UserUpdate(BaseModel):
     account_type: Optional[str] = None
     business_registration_number: Optional[str] = None
     tax_number: Optional[str] = None
+    tax_system: Optional[str] = None
     occupation: Optional[str] = None
     profession: Optional[str] = None
     country_code: Optional[str] = None

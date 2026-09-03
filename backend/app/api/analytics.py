@@ -37,19 +37,20 @@ def get_analytics_summary(
     fraud_alerts_q = db.query(func.count(ValidationResult.validation_id)).join(Invoice).filter(ValidationResult.risk_score > 50)
 
     # Scoping
-    if current_user.role == UserRole.ADMINISTRATOR:
-        if current_user.company_id:
-            total_q = total_q.filter(Invoice.company_id == current_user.company_id)
-            validated_q = validated_q.filter(Invoice.company_id == current_user.company_id)
-            flagged_q = flagged_q.filter(Invoice.company_id == current_user.company_id)
-            rejected_q = rejected_q.filter(Invoice.company_id == current_user.company_id)
-            reports_q = reports_q.filter(ExportHistory.user_id == current_user.id)
-            vat_q = vat_q.filter(Invoice.company_id == current_user.company_id)
-            avg_speed_q = avg_speed_q.filter(Invoice.company_id == current_user.company_id)
-            monthly_val_q = monthly_val_q.filter(Invoice.company_id == current_user.company_id)
-            duplicates_q = duplicates_q.filter(Invoice.company_id == current_user.company_id)
-            fraud_alerts_q = fraud_alerts_q.filter(Invoice.company_id == current_user.company_id)
-    elif current_user.account_type == "PERSONAL":
+    acct_type_str = current_user.account_type.value if hasattr(current_user.account_type, "value") else str(current_user.account_type)
+
+    if current_user.role == UserRole.ADMINISTRATOR and current_user.company_id:
+        total_q = total_q.filter(Invoice.company_id == current_user.company_id)
+        validated_q = validated_q.filter(Invoice.company_id == current_user.company_id)
+        flagged_q = flagged_q.filter(Invoice.company_id == current_user.company_id)
+        rejected_q = rejected_q.filter(Invoice.company_id == current_user.company_id)
+        reports_q = reports_q.filter(ExportHistory.user_id == current_user.id)
+        vat_q = vat_q.filter(Invoice.company_id == current_user.company_id)
+        avg_speed_q = avg_speed_q.filter(Invoice.company_id == current_user.company_id)
+        monthly_val_q = monthly_val_q.filter(Invoice.company_id == current_user.company_id)
+        duplicates_q = duplicates_q.filter(Invoice.company_id == current_user.company_id)
+        fraud_alerts_q = fraud_alerts_q.filter(Invoice.company_id == current_user.company_id)
+    elif acct_type_str == "PERSONAL":
         total_q = total_q.filter(Invoice.uploaded_by == current_user.id)
         validated_q = validated_q.filter(Invoice.uploaded_by == current_user.id)
         flagged_q = flagged_q.filter(Invoice.uploaded_by == current_user.id)
@@ -60,7 +61,7 @@ def get_analytics_summary(
         monthly_val_q = monthly_val_q.filter(Invoice.uploaded_by == current_user.id)
         duplicates_q = duplicates_q.filter(Invoice.uploaded_by == current_user.id)
         fraud_alerts_q = fraud_alerts_q.filter(Invoice.uploaded_by == current_user.id)
-    elif current_user.account_type == "COMPANY":
+    elif acct_type_str == "COMPANY":
         total_q = total_q.filter(Invoice.company_id == current_user.company_id)
         validated_q = validated_q.filter(Invoice.company_id == current_user.company_id)
         flagged_q = flagged_q.filter(Invoice.company_id == current_user.company_id)
@@ -84,6 +85,7 @@ def get_analytics_summary(
     fraud_alerts = fraud_alerts_q.scalar() or 0
 
     return {
+        "total_invoices": total_invoices,
         "total_reports_generated": reports_count,
         "invoices_validated": total_invoices,
         "valid_invoices": validated,

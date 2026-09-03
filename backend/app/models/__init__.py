@@ -12,6 +12,7 @@ from app.models.system import BackupRecord, SystemLog
 from app.models.ai import AIConversation, AIMessage, FavoritePrompt, AIInsight
 from app.models.companies import Company
 from app.models.countries import Country, Currency, PhoneCountryCode, TaxSystem, TaxRate, CountryTaxConfiguration
+from app.models.password_reset import PasswordResetToken
 
 __all__ = [
     "Base",
@@ -46,4 +47,5 @@ __all__ = [
     "TaxSystem",
     "TaxRate",
     "CountryTaxConfiguration",
+    "PasswordResetToken",
 ]

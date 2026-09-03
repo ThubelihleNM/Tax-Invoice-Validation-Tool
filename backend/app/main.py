@@ -7,7 +7,7 @@ import os
 
 from app.config.config import settings
 from app.database.connection import engine, Base, SessionLocal, get_db
-from app.api import auth, users, audit, invoices, validation, reports, analytics, settings as api_settings, system, ai, companies, countries
+from app.api import auth, users, audit, invoices, validation, reports, analytics, settings as api_settings, system, ai, companies, countries, notifications
 
 def upgrade_db_schema():
     from app.database.connection import SessionLocal
@@ -25,6 +25,9 @@ def upgrade_db_schema():
             db.commit()
         if "tax_number" not in columns:
             db.execute(text("ALTER TABLE users ADD COLUMN tax_number VARCHAR(100) NULL"))
+            db.commit()
+        if "tax_system" not in columns:
+            db.execute(text("ALTER TABLE users ADD COLUMN tax_system VARCHAR(50) NULL"))
             db.commit()
         if "occupation" not in columns:
             db.execute(text("ALTER TABLE users ADD COLUMN occupation VARCHAR(100) NULL"))
@@ -44,6 +47,51 @@ def upgrade_db_schema():
         if "company_id" not in inv_columns:
             db.execute(text("ALTER TABLE invoices ADD COLUMN company_id INTEGER NULL"))
             db.commit()
+
+        # Country tax configurations table checks
+        if "country_tax_configurations" in inspector.get_table_names():
+            indexes = inspector.get_indexes("country_tax_configurations")
+            unique_country_indexes = [idx for idx in indexes if idx.get("unique") and "country_id" in idx.get("column_names", [])]
+            unique_cons = inspector.get_unique_constraints("country_tax_configurations")
+            has_unique_country = any("country_id" in uc.get("column_names", []) for uc in unique_cons) or bool(unique_country_indexes)
+            
+            # Check SQLite schema DDL for UNIQUE(country_id)
+            is_sqlite = str(db.bind.url).startswith("sqlite")
+            if is_sqlite:
+                schema_res = db.execute(text("SELECT sql FROM sqlite_master WHERE type='table' AND name='country_tax_configurations'")).scalar()
+                if schema_res and ("UNIQUE (country_id)" in schema_res or "unique" in schema_res.lower()):
+                    has_unique_country = True
+
+            if has_unique_country and is_sqlite:
+                db.execute(text("""
+                    CREATE TABLE country_tax_configurations_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        country_id INTEGER NOT NULL REFERENCES countries(id) ON DELETE CASCADE,
+                        tax_system_id INTEGER NOT NULL REFERENCES tax_systems(id) ON DELETE RESTRICT,
+                        currency_id INTEGER NOT NULL REFERENCES currencies(id) ON DELETE RESTRICT,
+                        tax_number_label VARCHAR(50) NOT NULL,
+                        default_rate_id INTEGER REFERENCES tax_rates(id) ON DELETE SET NULL,
+                        is_primary BOOLEAN DEFAULT 1 NOT NULL,
+                        description VARCHAR(255) NULL
+                    )
+                """))
+                db.execute(text("""
+                    INSERT INTO country_tax_configurations_new 
+                    (id, country_id, tax_system_id, currency_id, tax_number_label, default_rate_id, is_primary)
+                    SELECT id, country_id, tax_system_id, currency_id, tax_number_label, default_rate_id, 1
+                    FROM country_tax_configurations
+                """))
+                db.execute(text("DROP TABLE country_tax_configurations"))
+                db.execute(text("ALTER TABLE country_tax_configurations_new RENAME TO country_tax_configurations"))
+                db.commit()
+            else:
+                ctc_cols = [col["name"] for col in inspector.get_columns("country_tax_configurations")]
+                if "is_primary" not in ctc_cols:
+                    db.execute(text("ALTER TABLE country_tax_configurations ADD COLUMN is_primary BOOLEAN DEFAULT 1"))
+                    db.commit()
+                if "description" not in ctc_cols:
+                    db.execute(text("ALTER TABLE country_tax_configurations ADD COLUMN description VARCHAR(255) NULL"))
+                    db.commit()
     except Exception as e:
         print(f"Error upgrading database: {e}")
     finally:
@@ -160,7 +208,7 @@ app = FastAPI(
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust for production
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -189,14 +237,39 @@ app.include_router(system.router, prefix=settings.API_V1_STR)
 app.include_router(ai.router, prefix=settings.API_V1_STR)
 app.include_router(companies.router, prefix=settings.API_V1_STR)
 app.include_router(countries.router, prefix=settings.API_V1_STR)
+app.include_router(notifications.router, prefix=settings.API_V1_STR)
 
 # Serve uploaded profile photos dynamically
 os.makedirs(os.path.join(settings.UPLOAD_DIR, "profiles"), exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
+from fastapi.responses import FileResponse
+
+# Serve root SPA files seamlessly
+_root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
 @app.get("/")
-def read_root():
+@app.get("/index.html")
+def read_root(request: Request):
+    index_path = os.path.join(_root_dir, "index.html")
+    accept_header = request.headers.get("accept", "")
+    if ("text/html" in accept_header or "*/*" in accept_header or request.url.path == "/index.html") and os.path.exists(index_path):
+        return FileResponse(index_path, media_type="text/html")
     return {"message": "Welcome to Smart Tax Invoice Validation API"}
+
+@app.get("/style.css")
+def get_style():
+    path = os.path.join(_root_dir, "style.css")
+    if os.path.exists(path):
+        return FileResponse(path, media_type="text/css")
+    raise HTTPException(status_code=404, detail="style.css not found")
+
+@app.get("/app.js")
+def get_app_js():
+    path = os.path.join(_root_dir, "app.js")
+    if os.path.exists(path):
+        return FileResponse(path, media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="app.js not found")
 
 @app.get("/health")
 def health_check(db=Depends(get_db)):

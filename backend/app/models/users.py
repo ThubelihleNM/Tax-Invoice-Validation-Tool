@@ -36,6 +36,7 @@ class User(Base):
     # SaaS onboarding fields
     business_registration_number = Column(String(100), nullable=True)
     tax_number = Column(String(100), nullable=True)
+    tax_system = Column(String(50), nullable=True)  # GST, VAT, Sales Tax, HST, PST, etc.
     occupation = Column(String(100), nullable=True)
     profession = Column(String(100), nullable=True)
     
@@ -78,3 +79,4 @@ class User(Base):
     audit_logs = relationship("AuditLog", back_populates="user")
     notifications = relationship("Notification", back_populates="user")
     generated_reports = relationship("Report", back_populates="creator")
+    reset_tokens = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")

@@ -85,10 +85,22 @@
             <input type="text" class="search-input" placeholder="Search invoices..." id="headerSearch">
           </div>
 
-          <button class="icon-button" id="notifBtn" aria-label="View Notifications">
-            <i data-lucide="bell"></i>
-            <span class="badge-dot"></span>
-          </button>
+          <div style="position: relative;">
+            <button class="icon-button" id="notifBtn" aria-label="View Notifications">
+              <i data-lucide="bell"></i>
+              <span class="badge-dot" id="notifBadgeDot" style="display: none;"></span>
+            </button>
+            <div class="dropdown-menu" id="headerNotificationsDropdown"
+              style="display: none; position: absolute; top: calc(100% + 8px); right: 0; background-color: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); width: 340px; max-height: 420px; z-index: 1000; overflow: hidden; flex-direction: column;">
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border-color); background: #f8fafc;">
+                <span style="font-size: 13px; font-weight: 700; color: #1e293b;">Notifications</span>
+                <button type="button" id="markAllNotifsReadBtn" style="border: none; background: transparent; color: var(--primary); font-size: 11px; font-weight: 600; cursor: pointer;">Mark all as read</button>
+              </div>
+              <div id="headerNotificationsList" style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column;">
+                <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 12px;">No new notifications</div>
+              </div>
+            </div>
+          </div>
 
           <button class="btn btn-primary btn-sm" id="quickUploadBtn">
             <i data-lucide="plus"></i>
@@ -1305,7 +1317,7 @@
         <div class="hero-actions">
           <button class="btn btn-primary" id="heroGetStartedBtn">Get Started Free</button>
           <button class="btn btn-outline" id="heroSignInBtn">Sign In</button>
-          <button class="btn btn-ghost">Watch Demo</button>
+          <button class="btn btn-ghost" id="heroWatchDemoBtn">Watch Demo</button>
         </div>
       </div>
       <div class="hero-illustration">
@@ -1670,6 +1682,13 @@
           <div id="signupCountryTaxSummary"
             style="display: none; padding: 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-md); font-size: 11px; margin-bottom: 12px; color: #1e40af; line-height: 1.5;">
           </div>
+          <div id="signupTaxSystemWrapper" style="display: none; margin-bottom: 12px;">
+            <label class="form-label" for="signupTaxSystemSelect"
+              style="font-size: 11px; font-weight: 600; color: var(--text-muted);">Applicable Tax System</label>
+            <select id="signupTaxSystemSelect" class="form-control"
+              style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px; width: 100%;">
+            </select>
+          </div>
           <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;">
             <label class="form-label" for="signupOccupation"
               style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Occupation (Optional)</label>
@@ -1764,6 +1783,13 @@
           </div>
           <div id="signupCompanyCountryTaxSummary"
             style="display: none; padding: 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-md); font-size: 11px; margin-bottom: 12px; color: #1e40af; line-height: 1.5;">
+          </div>
+          <div id="signupCompanyTaxSystemWrapper" style="display: none; margin-bottom: 12px;">
+            <label class="form-label" for="signupCompanyTaxSystemSelect"
+              style="font-size: 11px; font-weight: 600; color: var(--text-muted);">Applicable Tax System</label>
+            <select id="signupCompanyTaxSystemSelect" class="form-control"
+              style="padding: 8px 10px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 12px; width: 100%;">
+            </select>
           </div>
         </div>
 
@@ -1871,21 +1897,33 @@
         <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;">
           <label class="form-label" for="resetToken"
             style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Reset Token</label>
-          <input type="text" id="resetToken" class="form-control" placeholder="Enter token from recovery response"
+          <input type="text" id="resetToken" class="form-control" placeholder="Enter token from recovery email or response"
             required
             style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
         </div>
         <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;">
           <label class="form-label" for="resetNewPassword"
             style="font-size: 12px; font-weight: 600; color: var(--text-muted);">New Password</label>
-          <input type="password" id="resetNewPassword" class="form-control" placeholder="••••••••" required
-            style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+          <div style="position: relative;">
+            <input type="password" id="resetNewPassword" class="form-control" placeholder="••••••••" required minlength="8"
+              style="padding: 10px 40px 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px; width: 100%;">
+            <button type="button" id="toggleResetNewPassword" aria-label="Toggle password visibility"
+              style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); border: none; background: transparent; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center;">
+              <i data-lucide="eye" style="width: 16px; height: 16px;"></i>
+            </button>
+          </div>
         </div>
         <div class="form-group" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px;">
           <label class="form-label" for="resetConfirmPassword"
             style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Confirm Password</label>
-          <input type="password" id="resetConfirmPassword" class="form-control" placeholder="••••••••" required
-            style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px;">
+          <div style="position: relative;">
+            <input type="password" id="resetConfirmPassword" class="form-control" placeholder="••••••••" required minlength="8"
+              style="padding: 10px 40px 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px; width: 100%;">
+            <button type="button" id="toggleResetConfirmPassword" aria-label="Toggle confirm password visibility"
+              style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); border: none; background: transparent; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center;">
+              <i data-lucide="eye" style="width: 16px; height: 16px;"></i>
+            </button>
+          </div>
         </div>
         <button type="submit" class="btn btn-primary"
           style="width: 100%; padding: 12px; font-weight: 600; font-size: 13px; margin-bottom: 12px;">Save New
@@ -1901,7 +1939,7 @@
   <div id="conflictModal"
     style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); align-items: center; justify-content: center; z-index: 2000;">
     <div
-      style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); width: 100%; max-width: 400px; padding: 24px; position: relative; display: flex; flex-direction: column; gap: 16px;">
+      style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); width: 100%; max-width: 420px; padding: 24px; position: relative; display: flex; flex-direction: column; gap: 16px;">
       <button type="button" onclick="document.getElementById('conflictModal').style.display = 'none'"
         style="position: absolute; right: 16px; top: 16px; border: none; background: transparent; cursor: pointer; color: var(--text-muted);"><i
           data-lucide="x" style="width: 20px; height: 20px;"></i></button>
@@ -1909,18 +1947,82 @@
         <i data-lucide="alert-triangle" style="width: 24px; height: 24px; color: #f59e0b;"></i>
         <span style="font-size: 16px; color: #1e293b;">Account Already Exists</span>
       </div>
-      <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">An account with this email address already
-        exists. Would you like to sign in or reset your password?</p>
+      <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin: 0;">An account with this email address already
+        exists in TaxAudit. You can sign in directly, change your email, or reset your password.</p>
       <div style="display: flex; flex-direction: column; gap: 8px;">
-        <button type="button" class="btn btn-primary"
+        <button type="button" class="btn btn-primary" id="conflictSignInBtn"
           onclick="document.getElementById('conflictModal').style.display = 'none'; showAuthCard('loginCard')"
           style="width: 100%; padding: 10px; font-weight: 600; font-size: 13px;">Sign In</button>
+        <button type="button" class="btn btn-outline" id="conflictUseAnotherEmailBtn"
+          style="width: 100%; padding: 10px; font-weight: 600; font-size: 13px;">Use Another Email</button>
         <button type="button" class="btn btn-outline"
           onclick="document.getElementById('conflictModal').style.display = 'none'; showAuthCard('forgotCard')"
           style="width: 100%; padding: 10px; font-weight: 600; font-size: 13px;">Forgot Password</button>
-        <button type="button" class="btn btn-outline"
-          onclick="document.getElementById('conflictModal').style.display = 'none'"
-          style="width: 100%; padding: 10px; font-weight: 600; font-size: 13px; border-color: transparent;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Registration Success Modal -->
+  <div id="registrationSuccessModal"
+    style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); align-items: center; justify-content: center; z-index: 2000;">
+    <div
+      style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); width: 100%; max-width: 420px; padding: 28px; position: relative; display: flex; flex-direction: column; gap: 16px; text-align: center;">
+      <div style="width: 56px; height: 56px; border-radius: 50%; background: #dcfce7; color: #16a34a; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+        <i data-lucide="check-circle" style="width: 32px; height: 32px;"></i>
+      </div>
+      <h3 style="font-size: 18px; font-weight: 700; color: #1e293b; margin: 0;">Registration Successful!</h3>
+      <p id="registrationSuccessMsg" style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin: 0;">
+        Your account has been created and verified in the database. Please sign in with your credentials to access your workspace.
+      </p>
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+        <button type="button" id="regSuccessSignInBtn" class="btn btn-primary"
+          onclick="document.getElementById('registrationSuccessModal').style.display = 'none'; showAuthCard('loginCard')"
+          style="width: 100%; padding: 12px; font-weight: 600; font-size: 14px;">Sign In to TaxAudit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive Demo Walkthrough Modal -->
+  <div id="demoModal"
+    style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(5px); align-items: center; justify-content: center; z-index: 2000;">
+    <div
+      style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); width: 100%; max-width: 680px; padding: 28px; position: relative; display: flex; flex-direction: column; gap: 16px;">
+      <button type="button" onclick="document.getElementById('demoModal').style.display = 'none'"
+        style="position: absolute; right: 20px; top: 20px; border: none; background: transparent; cursor: pointer; color: var(--text-muted);"><i
+          data-lucide="x" style="width: 22px; height: 22px;"></i></button>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="logo-icon" style="width: 38px; height: 38px; font-size: 18px;">T</div>
+        <div>
+          <h3 style="font-size: 18px; font-weight: 700; color: #1e293b; margin: 0;">Smart Tax Invoice Validation Demo</h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Next-generation automated compliance auditing engine</p>
+        </div>
+      </div>
+      <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; gap: 12px; align-items: flex-start;">
+          <div style="background: #e0e7ff; color: #4338ca; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">1</div>
+          <div>
+            <h4 style="font-size: 13px; font-weight: 600; color: #1e293b; margin: 0 0 2px 0;">OCR Document Extraction</h4>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 0;">High-accuracy optical character recognition pulls invoice number, supplier details, line items, and totals directly from PDFs or scanned photos.</p>
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: flex-start;">
+          <div style="background: #e0e7ff; color: #4338ca; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">2</div>
+          <div>
+            <h4 style="font-size: 13px; font-weight: 600; color: #1e293b; margin: 0 0 2px 0;">Multi-Jurisdiction Tax System Engine</h4>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Validates GSTIN in India, VAT in South Africa and the UK, TRN in UAE, and Canadian federal/provincial GST/HST/PST combinations against legal mathematical brackets.</p>
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: flex-start;">
+          <div style="background: #e0e7ff; color: #4338ca; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">3</div>
+          <div>
+            <h4 style="font-size: 13px; font-weight: 600; color: #1e293b; margin: 0 0 2px 0;">Real-Time Anomaly & Duplicate Detection</h4>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Flags duplicate submissions across a rolling 90-day archive, identifies mismatched tax rates, and scores risk automatically.</p>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('demoModal').style.display = 'none'">Close</button>
+        <button type="button" class="btn btn-primary" onclick="document.getElementById('demoModal').style.display = 'none'; showAuthCard('signupCard')">Get Started Free</button>
       </div>
     </div>
   </div>
