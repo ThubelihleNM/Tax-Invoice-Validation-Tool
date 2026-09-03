@@ -167,6 +167,23 @@ function showAuthCard(cardId) {
       card.style.display = id === cardId ? "block" : "none";
     }
   });
+
+  const authContainer = document.getElementById("authContainer");
+  const landingPage = document.getElementById("landingPageContainer");
+  if (authContainer) authContainer.style.display = "flex";
+  if (landingPage) landingPage.style.display = "none";
+
+  // Hide modals if open
+  const errorModal = document.getElementById("loginErrorModal");
+  if (errorModal) errorModal.style.display = "none";
+
+  // If leaving login card, clear inline error alert
+  if (cardId !== "loginCard") {
+    const errAlert = document.getElementById("loginErrorAlert");
+    if (errAlert) errAlert.style.display = "none";
+    const succAlert = document.getElementById("loginSuccessAlert");
+    if (succAlert) succAlert.style.display = "none";
+  }
 }
 
 // // Client-side Session Route Guard with Authoritative Backend Verification
@@ -213,6 +230,8 @@ async function checkAuthState() {
     localStorage.setItem("user_account_type", user.account_type || "PERSONAL");
     localStorage.setItem("user_country", user.country || "");
     localStorage.setItem("user_tax_system", user.tax_system || "");
+    localStorage.setItem("user_currency", user.currency || "USD");
+    localStorage.setItem("user_currency_symbol", user.currency_symbol || "$");
 
     if (landingPage) landingPage.style.display = "none";
     if (authContainer) authContainer.style.display = "none";
@@ -286,15 +305,30 @@ async function handleLoginSubmit() {
   const password = passwordInput ? passwordInput.value : "";
   const rememberMe = document.getElementById("loginRememberMe") ? document.getElementById("loginRememberMe").checked : false;
 
+  const errorAlert = document.getElementById("loginErrorAlert");
+  const errorAlertText = document.getElementById("loginErrorAlertText");
+  const successAlert = document.getElementById("loginSuccessAlert");
+  const errorModal = document.getElementById("loginErrorModal");
+  const errorModalText = document.getElementById("loginErrorModalText");
+
+  if (errorAlert) errorAlert.style.display = "none";
+  if (successAlert) successAlert.style.display = "none";
+
   if (!email) {
-    showToast("Please enter your email address.");
-    if (emailInput) emailInput.focus();
+    showToast("Please enter your email address.", "error");
+    if (emailInput) {
+      emailInput.style.borderColor = "#ef4444";
+      emailInput.focus();
+    }
     return;
   }
 
   if (password.length < 8) {
-    showToast("Password must be at least 8 characters long.");
-    if (passwordInput) passwordInput.focus();
+    showToast("Password must be at least 8 characters long.", "error");
+    if (passwordInput) {
+      passwordInput.style.borderColor = "#ef4444";
+      passwordInput.focus();
+    }
     return;
   }
 
@@ -313,18 +347,42 @@ async function handleLoginSubmit() {
         localStorage.setItem("refresh_token", data.refresh_token);
       }
       
-      showToast("Access granted successfully.");
+      if (passwordInput) passwordInput.style.borderColor = "";
+      if (errorAlert) errorAlert.style.display = "none";
+      if (errorModal) errorModal.style.display = "none";
+
+      showToast("Access granted successfully.", "success");
       await checkAuthState();
     } else {
       // Clear password field on error and keep user on login page
       if (passwordInput) {
         passwordInput.value = "";
+        passwordInput.style.borderColor = "#ef4444";
         passwordInput.focus();
       }
-      showToast(data.detail || "Incorrect email or password.");
+
+      const errorMsg = data.detail || "Incorrect email or password.";
+
+      // 1. Show inline error alert on login card
+      if (errorAlert && errorAlertText) {
+        errorAlertText.textContent = errorMsg;
+        errorAlert.style.display = "flex";
+      }
+
+      // 2. Show dedicated popup modal
+      if (errorModal) {
+        if (errorModalText) {
+          errorModalText.textContent = errorMsg + " Please check your password and try again.";
+        }
+        errorModal.style.display = "flex";
+        lucide.createIcons();
+      }
+
+      // 3. Show high-visibility toast
+      showToast(errorMsg, "error");
     }
   } catch (err) {
-    showToast("Unable to connect to login authentication service.");
+    showToast("Unable to connect to login authentication service.", "error");
   }
 }
 
@@ -530,21 +588,60 @@ async function handleSignupSubmit() {
       const loginEmailInput = document.getElementById("loginEmail");
       if (loginEmailInput) loginEmailInput.value = payload.email;
 
-      // Show Registration Successful Modal
+      // Prepare and show Success Alert banner on the Login Screen
+      const loginSuccessAlert = document.getElementById("loginSuccessAlert");
+      const loginSuccessAlertText = document.getElementById("loginSuccessAlertText");
+      if (loginSuccessAlert && loginSuccessAlertText) {
+        const taxSysStr = payload.tax_system ? ` (${payload.tax_system})` : "";
+        loginSuccessAlertText.textContent = `Account created successfully for ${payload.first_name} ${payload.last_name}${taxSysStr}! Please enter your password to sign in.`;
+        loginSuccessAlert.style.display = "flex";
+      }
+
+      // Hide any previous login error alert
+      const loginErrorAlert = document.getElementById("loginErrorAlert");
+      if (loginErrorAlert) loginErrorAlert.style.display = "none";
+      const loginErrorModal = document.getElementById("loginErrorModal");
+      if (loginErrorModal) loginErrorModal.style.display = "none";
+
+      // Show high-visibility toast
+      showToast("Account created successfully! Directing you to Sign In...", "success");
+
+      // Show Registration Successful Modal and auto-direct to Sign In page
       const successModal = document.getElementById("registrationSuccessModal");
       const successMsg = document.getElementById("registrationSuccessMsg");
       if (successMsg) {
-        const taxSysMsg = payload.tax_system ? ` Tax System: ${payload.tax_system}.` : "";
-        successMsg.textContent = `Your account for ${payload.first_name} ${payload.last_name} (${payload.country || 'Global'}${taxSysMsg}) has been successfully created. Please sign in to access your workspace.`;
+        const taxSysMsg = payload.tax_system ? ` (${payload.country || 'Global'} - ${payload.tax_system})` : "";
+        successMsg.innerHTML = `Your account for <strong>${escapeHtml(payload.first_name)} ${escapeHtml(payload.last_name)}</strong>${taxSysMsg} has been created successfully in the database.<br><br><span style="color: #16a34a; font-weight: 600;">Directing you to the sign in page...</span>`;
       }
+
       if (successModal) {
         successModal.style.display = "flex";
+        lucide.createIcons();
+        
+        // Auto direct user to Sign In page after 1.5 seconds
+        setTimeout(() => {
+          if (successModal.style.display !== "none") {
+            successModal.style.display = "none";
+            showAuthCard("loginCard");
+            const pwField = document.getElementById("loginPassword");
+            if (pwField) {
+              pwField.value = "";
+              pwField.style.borderColor = "";
+              pwField.focus();
+            }
+          }
+        }, 1500);
       } else {
-        showToast("Registration Successful! Please sign in.");
         showAuthCard("loginCard");
+        const pwField = document.getElementById("loginPassword");
+        if (pwField) {
+          pwField.value = "";
+          pwField.style.borderColor = "";
+          pwField.focus();
+        }
       }
     } else {
-      showToast(data.detail || "Registration failed. Please check your fields.");
+      showToast(data.detail || "Registration failed. Please check your fields.", "error");
     }
   } catch (err) {
     showToast("Connection to authentication server failed.");
@@ -649,12 +746,47 @@ async function handleLogout() {
   checkAuthState();
 }
 
+function closeRegSuccessAndDirectToLogin() {
+  const modal = document.getElementById("registrationSuccessModal");
+  if (modal) modal.style.display = "none";
+  showAuthCard("loginCard");
+  const pwField = document.getElementById("loginPassword");
+  if (pwField) {
+    pwField.value = "";
+    pwField.style.borderColor = "";
+    pwField.focus();
+  }
+}
+
+function closeLoginErrorModal() {
+  const modal = document.getElementById("loginErrorModal");
+  if (modal) modal.style.display = "none";
+  const pwField = document.getElementById("loginPassword");
+  if (pwField) {
+    pwField.focus();
+  }
+}
+
+function goToForgotPasswordFromError() {
+  const modal = document.getElementById("loginErrorModal");
+  if (modal) modal.style.display = "none";
+  showAuthCard("forgotCard");
+  const loginEmail = document.getElementById("loginEmail");
+  const forgotEmail = document.getElementById("forgotEmail");
+  if (loginEmail && forgotEmail && loginEmail.value) {
+    forgotEmail.value = loginEmail.value;
+  }
+}
+
 window.handleLoginSubmit = handleLoginSubmit;
 window.handleSignupSubmit = handleSignupSubmit;
 window.handleForgotSubmit = handleForgotSubmit;
 window.handleResetSubmit = handleResetSubmit;
 window.showAuthCard = showAuthCard;
 window.handleLogout = handleLogout;
+window.closeRegSuccessAndDirectToLogin = closeRegSuccessAndDirectToLogin;
+window.closeLoginErrorModal = closeLoginErrorModal;
+window.goToForgotPasswordFromError = goToForgotPasswordFromError;
 
 // ==========================================
 // Database Query Mappings
@@ -2446,6 +2578,20 @@ async function loadUserProfile() {
       document.getElementById("profPostal").value = profile.postal_code || "";
       document.getElementById("profBio").value = profile.bio || "";
 
+      // Bind Sovereign Currency fields from selected country
+      const currencyDisplay = profile.currency ? `${profile.currency} (${profile.currency_symbol || '$'})` : "USD ($)";
+      const profCurrencyInput = document.getElementById("profCurrency");
+      if (profCurrencyInput) profCurrencyInput.value = currencyDisplay;
+      const prefCurrencyInput = document.getElementById("prefCurrency");
+      if (prefCurrencyInput) prefCurrencyInput.value = currencyDisplay;
+
+      const metaCountry = document.getElementById("metaCountry");
+      if (metaCountry) metaCountry.textContent = profile.country || "Global";
+      const metaCurrency = document.getElementById("metaCurrency");
+      if (metaCurrency) metaCurrency.textContent = currencyDisplay;
+      const metaTaxSystem = document.getElementById("metaTaxSystem");
+      if (metaTaxSystem) metaTaxSystem.textContent = profile.tax_system || "VAT";
+
       // Bind Preferences switches
       document.getElementById("prefLanguage").value = profile.language_preference || "en";
       document.getElementById("prefTheme").value = profile.theme_preference || "light";
@@ -2639,14 +2785,47 @@ async function changeUserPassword() {
 // UI Helper Utilities
 // ==========================================
 
-function showToast(message) {
+function showToast(message, type = "info") {
   const container = document.getElementById("toastContainer");
+  if (!container) return;
   
   const toast = document.createElement("div");
-  toast.className = "toast";
+  toast.className = `toast toast-${type}`;
+  
+  let iconName = "info";
+  let bg = "#1e293b";
+  let border = "#334155";
+  let color = "#ffffff";
+  
+  if (type === "error") {
+    iconName = "alert-circle";
+    bg = "#b91c1c";
+    border = "#ef4444";
+    color = "#ffffff";
+  } else if (type === "success") {
+    iconName = "check-circle-2";
+    bg = "#15803d";
+    border = "#22c55e";
+    color = "#ffffff";
+  }
+  
+  toast.style.backgroundColor = bg;
+  toast.style.borderColor = border;
+  toast.style.borderWidth = "1px";
+  toast.style.borderStyle = "solid";
+  toast.style.color = color;
+  toast.style.fontWeight = "600";
+  toast.style.boxShadow = "0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)";
+  toast.style.display = "flex";
+  toast.style.alignItems = "center";
+  toast.style.gap = "10px";
+  toast.style.padding = "12px 18px";
+  toast.style.borderRadius = "8px";
+  toast.style.zIndex = "9999";
+  
   toast.innerHTML = `
-    <i data-lucide="info" style="width: 16px; height: 16px;"></i>
-    <span>${message}</span>
+    <i data-lucide="${iconName}" style="width: 18px; height: 18px; flex-shrink: 0;"></i>
+    <span style="font-size: 13px; line-height: 1.4;">${escapeHtml(message)}</span>
   `;
   
   container.appendChild(toast);
@@ -2657,7 +2836,7 @@ function showToast(message) {
     setTimeout(() => {
       toast.remove();
     }, 300);
-  }, 3200);
+  }, 3600);
 }
 
 function formatDate(dateString) {
@@ -2956,6 +3135,55 @@ function initLegacySignupUpgrade() {
       } catch (err) {
         console.error("Error marking notifications read:", err);
       }
+    });
+  }
+
+  // 12. Authentication Modals and Alert Handlers
+  const closeLoginErrorModalBtn = document.getElementById("closeLoginErrorModalBtn");
+  const loginErrorForgotBtn = document.getElementById("loginErrorForgotBtn");
+  const loginErrorModal = document.getElementById("loginErrorModal");
+  const regSuccessSignInBtn = document.getElementById("regSuccessSignInBtn");
+  const regSuccessModal = document.getElementById("registrationSuccessModal");
+  const loginPasswordInput = document.getElementById("loginPassword");
+  const loginEmailInput = document.getElementById("loginEmail");
+
+  if (closeLoginErrorModalBtn && loginErrorModal) {
+    closeLoginErrorModalBtn.addEventListener("click", () => {
+      loginErrorModal.style.display = "none";
+      if (loginPasswordInput) {
+        loginPasswordInput.focus();
+      }
+    });
+  }
+
+  if (loginErrorForgotBtn && loginErrorModal) {
+    loginErrorForgotBtn.addEventListener("click", () => {
+      loginErrorModal.style.display = "none";
+      showAuthCard("forgotCard");
+      const forgotEmailInput = document.getElementById("forgotEmail");
+      if (forgotEmailInput && loginEmailInput && loginEmailInput.value) {
+        forgotEmailInput.value = loginEmailInput.value;
+      }
+    });
+  }
+
+  if (regSuccessSignInBtn && regSuccessModal) {
+    regSuccessSignInBtn.addEventListener("click", () => {
+      regSuccessModal.style.display = "none";
+      showAuthCard("loginCard");
+      if (loginPasswordInput) {
+        loginPasswordInput.value = "";
+        loginPasswordInput.style.borderColor = "";
+        loginPasswordInput.focus();
+      }
+    });
+  }
+
+  if (loginPasswordInput) {
+    loginPasswordInput.addEventListener("input", () => {
+      loginPasswordInput.style.borderColor = "";
+      const errAlert = document.getElementById("loginErrorAlert");
+      if (errAlert) errAlert.style.display = "none";
     });
   }
 }

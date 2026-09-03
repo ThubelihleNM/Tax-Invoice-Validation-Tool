@@ -59,6 +59,7 @@ class User(Base):
     address = Column(String(255), nullable=True)
     postal_code = Column(String(20), nullable=True)
     tax_id = Column(String(50), nullable=True)
+    currency = Column(String(10), default="USD", nullable=True)
     bio = Column(String(1000), nullable=True)
     last_password_change = Column(DateTime(timezone=True), nullable=True)
     theme_preference = Column(String(20), default="light", nullable=False)
@@ -80,3 +81,21 @@ class User(Base):
     notifications = relationship("Notification", back_populates="user")
     generated_reports = relationship("Report", back_populates="creator")
     reset_tokens = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")
+
+    @property
+    def currency_symbol(self) -> str:
+        symbol_map = {
+            "INR": "₹",
+            "ZAR": "R",
+            "CAD": "$",
+            "USD": "$",
+            "GBP": "£",
+            "EUR": "€",
+            "AUD": "$",
+            "AED": "AED",
+            "NGN": "₦",
+            "KES": "KSh",
+            "ZWG": "ZiG"
+        }
+        return symbol_map.get(self.currency, "$") if self.currency else "$"
+

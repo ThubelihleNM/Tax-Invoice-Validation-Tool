@@ -41,6 +41,9 @@ def upgrade_db_schema():
         if "company_id" not in columns:
             db.execute(text("ALTER TABLE users ADD COLUMN company_id INTEGER NULL"))
             db.commit()
+        if "currency" not in columns:
+            db.execute(text("ALTER TABLE users ADD COLUMN currency VARCHAR(10) DEFAULT 'USD' NULL"))
+            db.commit()
 
         # Invoices table checks
         inv_columns = [col["name"] for col in inspector.get_columns("invoices")]

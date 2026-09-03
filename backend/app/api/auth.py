@@ -252,6 +252,7 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
         country_code=determined_country_code,
         country=determined_country,
         tax_system=determined_tax_system,
+        currency=currency_code,
         password_hash=hashed_password,
         role=UserRole.ACCOUNTANT if acct_type_str == "PERSONAL" else UserRole.OWNER,
         status=UserStatus.ACTIVE,

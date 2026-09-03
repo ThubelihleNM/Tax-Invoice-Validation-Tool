@@ -52,6 +52,7 @@ class ProfileUpdateRequest(BaseModel):
     occupation: Optional[str] = None
     profession: Optional[str] = None
     country_code: Optional[str] = None
+    currency: Optional[str] = None
 
 
 @router.get("", response_model=UserListResponse)
@@ -143,6 +144,16 @@ def update_profile(
     db: Session = Depends(get_db)
 ):
     """Allow active user to update their own name/phone number/preferences."""
+    resolved_currency = data.currency
+    if not resolved_currency and data.country and data.country.strip():
+        from app.models.countries import Country
+        clean_country = data.country.strip()
+        c_obj = db.query(Country).filter(
+            (Country.name.ilike(clean_country)) | (Country.code.ilike(clean_country))
+        ).first()
+        if c_obj and c_obj.tax_config and c_obj.tax_config.currency:
+            resolved_currency = c_obj.tax_config.currency.code
+
     user_in = UserUpdate(
         first_name=data.first_name,
         last_name=data.last_name,
@@ -154,6 +165,7 @@ def update_profile(
         address=data.address,
         postal_code=data.postal_code,
         tax_id=data.tax_id,
+        currency=resolved_currency,
         bio=data.bio,
         theme_preference=data.theme_preference,
         language_preference=data.language_preference,

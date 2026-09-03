@@ -29,6 +29,8 @@ class UserBase(BaseModel):
     address: Optional[str] = None
     postal_code: Optional[str] = None
     tax_id: Optional[str] = None
+    currency: Optional[str] = "USD"
+    currency_symbol: Optional[str] = "$"
     bio: Optional[str] = None
     theme_preference: str = "light"
     language_preference: str = "en"
@@ -67,6 +69,7 @@ class UserUpdate(BaseModel):
     address: Optional[str] = None
     postal_code: Optional[str] = None
     tax_id: Optional[str] = None
+    currency: Optional[str] = None
     bio: Optional[str] = None
     theme_preference: Optional[str] = None
     language_preference: Optional[str] = None

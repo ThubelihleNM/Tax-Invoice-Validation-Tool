@@ -233,8 +233,8 @@ def get_chart_datasets(
         })
 
     # 4. System Metrics load
-    import psutil
     try:
+        import psutil
         cpu = psutil.cpu_percent(interval=None) or 14.0
         mem = psutil.virtual_memory().percent or 45.0
     except Exception:
