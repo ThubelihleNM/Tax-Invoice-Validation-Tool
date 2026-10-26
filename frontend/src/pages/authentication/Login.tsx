@@ -5,7 +5,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { toast } from '../../components/common/Toast';
-import { Shield, CheckCircle } from 'lucide-react';
+import { Shield, CheckCircle, Home } from 'lucide-react';
+
 
 interface LoginFormInputs {
   email: string;
@@ -140,11 +141,21 @@ export const Login: React.FC = () => {
         </div>
 
         {/* Branding header */}
-        <div className="flex items-center gap-3 relative z-10">
-          <div className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
-            <Shield size={22} className="text-white" />
+        <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
+              <Shield size={22} className="text-white" />
+            </div>
+            <span className="font-bold text-white text-lg tracking-wide">TaxAudit SaaS</span>
           </div>
-          <span className="font-bold text-white text-lg tracking-wide">TaxAudit SaaS</span>
+          <Link
+            to="/"
+            id="login-home-btn-left"
+            className="flex items-center gap-1.5 text-xs text-white/80 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 rounded-full transition-all duration-200 font-medium"
+          >
+            <Home size={13} />
+            <span>Home</span>
+          </Link>
         </div>
 
         {/* Dynamic graphics and slogan */}
@@ -186,6 +197,17 @@ export const Login: React.FC = () => {
 
       {/* ================= RIGHT SIDE: MODERN GLASSMORPHISM CARD ================= */}
       <div className="col-span-1 md:col-span-7 flex flex-col justify-center p-8 sm:p-12 md:p-16 bg-white dark:bg-slate-900 transition-colors duration-200">
+        {/* Mobile Home button (visible on small screens where left panel is hidden) */}
+        <div className="md:hidden flex justify-start mb-4">
+          <Link
+            to="/"
+            id="login-home-btn-mobile"
+            className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-full transition-all duration-200 font-medium"
+          >
+            <Home size={13} />
+            <span>Home</span>
+          </Link>
+        </div>
         <div className="max-w-md w-full mx-auto space-y-8">
           
           {!isRegister ? (
@@ -283,7 +305,7 @@ export const Login: React.FC = () => {
                 </div>
               </div>
             </>
-          )}
+          ) : null}
 
         </div>
       </div>

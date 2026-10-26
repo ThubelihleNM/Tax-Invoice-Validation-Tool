@@ -19,24 +19,27 @@ class TestAuthRedesign(unittest.TestCase):
         # Execute Alter table schema upgrades
         upgrade_db_schema()
 
+    def _cleanup(self):
+        emails = [
+            "personal.test@example.com", 
+            "company.test@example.com", 
+            "invalid.test@example.com"
+        ]
+        user_ids = [u.id for u in self.db.query(User.id).filter(User.email.in_(emails)).all()]
+        if user_ids:
+            from app.models.audit import AuditLog
+            from app.models.companies import Company
+            self.db.query(AuditLog).filter(AuditLog.user_id.in_(user_ids)).delete(synchronize_session=False)
+            self.db.query(Company).filter(Company.owner_id.in_(user_ids)).delete(synchronize_session=False)
+            self.db.query(User).filter(User.id.in_(user_ids)).delete(synchronize_session=False)
+            self.db.commit()
+
     def setUp(self):
         self.db = SessionLocal()
-        # Clean up any leftover test users if they exist
-        self.db.query(User).filter(User.email.in_([
-            "personal.test@example.com", 
-            "company.test@example.com", 
-            "invalid.test@example.com"
-        ])).delete()
-        self.db.commit()
+        self._cleanup()
 
     def tearDown(self):
-        # Rollback and clean up after each test runs
-        self.db.query(User).filter(User.email.in_([
-            "personal.test@example.com", 
-            "company.test@example.com", 
-            "invalid.test@example.com"
-        ])).delete()
-        self.db.commit()
+        self._cleanup()
         self.db.close()
 
     def test_personal_registration_success(self):

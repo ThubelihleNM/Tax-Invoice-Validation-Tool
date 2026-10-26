@@ -161,7 +161,7 @@ export const AdminDashboard: React.FC = () => {
     setCleanupRunning(true);
     toast('info', 'Cleanup Initiated', 'Scrubbing storage folders for unreferenced assets...');
     try {
-      const res = await axios.delete('/api/system/cleanup' || '/api/system/storage/cleanup');
+      const res = await axios.delete('/api/system/cleanup');
       toast('success', 'Cleanup Completed', `Cleared ${res.data.files_deleted} orphan uploads, freeing ${res.data.space_freed_mb}MB.`);
       fetchAdminData();
     } catch (err) {

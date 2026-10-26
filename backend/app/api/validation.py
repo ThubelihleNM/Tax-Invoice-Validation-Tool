@@ -15,6 +15,7 @@ from app.services.validation_service import validation_service
 from app.services.report_service import report_service
 from app.repositories.audit_repository import audit_repository
 from app.api.invoices import check_invoice_access
+from app.schemas.validation import ValidationResultResponse
 
 router = APIRouter(prefix="/validation", tags=["Validation"])
 
@@ -25,7 +26,7 @@ class OverrideRequest(BaseModel):
 class CommentRequest(BaseModel):
     comment: str
 
-@router.post("/run/{invoice_id}", status_code=status.HTTP_200_OK)
+@router.post("/run/{invoice_id}", response_model=ValidationResultResponse, status_code=status.HTTP_200_OK)
 def run_invoice_validation(
     invoice_id: int,
     db: Session = Depends(get_db),
@@ -41,11 +42,12 @@ def run_invoice_validation(
         val_res = validation_service.run_validation(db, invoice_id)
         # Generate PDF report automatically
         report_service.generate_validation_pdf(db, invoice_id)
+        db.refresh(val_res)
         return val_res
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Validation failed to run: {str(e)}")
 
-@router.get("/{invoice_id}")
+@router.get("/{invoice_id}", response_model=ValidationResultResponse)
 def get_validation_details(
     invoice_id: int,
     db: Session = Depends(get_db),

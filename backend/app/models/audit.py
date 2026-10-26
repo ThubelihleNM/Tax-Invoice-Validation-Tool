@@ -6,7 +6,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     log_id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     action = Column(String(100), nullable=False)  # e.g., "LOGIN", "INVOICE_UPLOAD", "MANUAL_OVERRIDE"
     description = Column(Text, nullable=False)
     ip_address = Column(String(45), nullable=True)

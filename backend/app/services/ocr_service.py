@@ -17,6 +17,13 @@ except ImportError:
     HAS_PYTESSERACT = False
 
 try:
+    from rapidocr_onnxruntime import RapidOCR
+    HAS_RAPIDOCR = True
+except ImportError:
+    RapidOCR = None
+    HAS_RAPIDOCR = False
+
+try:
     import pdfplumber
     HAS_PDFPLUMBER = True
 except ImportError:
@@ -172,7 +179,7 @@ class SmartFieldExtractor:
     }
 
     @classmethod
-    def parse_invoice_text(cls, raw_text: str, filename: str = '') -> Dict[str, Any]:
+    def parse_invoice_text(cls, raw_text: str, filename: str = '', default_currency: str = 'USD') -> Dict[str, Any]:
         lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
         full_text = raw_text
 
@@ -206,7 +213,7 @@ class SmartFieldExtractor:
         }
 
         # 1. Detect Currency
-        extracted['currency'] = cls._extract_currency(full_text)
+        extracted['currency'] = cls._extract_currency(full_text, default_currency=default_currency)
         extracted['field_confidences']['currency'] = 95.0
 
         # 2. Extract Invoice Number
@@ -287,12 +294,12 @@ class SmartFieldExtractor:
         }
 
     @classmethod
-    def _extract_currency(cls, text: str) -> str:
+    def _extract_currency(cls, text: str, default_currency: str = 'USD') -> str:
         for symbol, code in cls.CURRENCY_MAP.items():
             pattern = r'\b' + re.escape(symbol) + r'\b' if len(symbol) > 1 else re.escape(symbol)
             if re.search(pattern, text, re.IGNORECASE):
                 return code
-        return 'USD'
+        return default_currency
 
     @classmethod
     def _extract_invoice_number(cls, text: str, lines: List[str]) -> Tuple[str, float]:
@@ -567,7 +574,7 @@ class SmartFieldExtractor:
             else:
                 vat_rate = 15.00
 
-        m_tax_amt = re.search(r'(?:VAT\s*\([0-9\.%\s]+\)|GST\s*\([0-9\.%\s]+\)|VAT\s+Amount|GST\s+Amount|Tax\s+Amount|VAT|GST|Tax)\s*[:\-]?\s*([\$€£₹R\sA-Z]*[0-9,\.]+)', text, re.IGNORECASE)
+        m_tax_amt = re.search(r'\b(?:VAT|GST|Tax)\b(?!\s+Number\b)(?:\s*\([0-9\.%\s]+\)|\s+Amount)?\s*[:\-]?\s*([\$€£₹R\sA-Z]*\d[0-9,\.]*)', text, re.IGNORECASE)
         if m_tax_amt:
             vat_amount = parse_amount(m_tax_amt.group(1))
             vat_conf = 92.0
@@ -575,7 +582,7 @@ class SmartFieldExtractor:
             vat_amount = round(subtotal * (vat_rate / 100.0), 2)
             vat_conf = 85.0
 
-        m_tot = re.search(r'(?:Grand\s+Total|Total\s+Amount|Total\s+Due|Amount\s+Due|Total\s+Payable|Balance\s+Due|Total)\s*[:\-]?\s*([\$€£₹R\sA-Z]*[0-9,\.]+)', text, re.IGNORECASE)
+        m_tot = re.search(r'\b(?:Grand\s+Total|Total\s+Amount|Total\s+Due|Amount\s+Due|Total\s+Payable|Balance\s+Due|Total)\b\s*[:\-]?\s*([\$€£₹R\sA-Z]*[0-9,\.]+)', text, re.IGNORECASE)
         if m_tot:
             total_amount = parse_amount(m_tot.group(1))
             total_conf = 96.0
@@ -663,10 +670,11 @@ class SmartFieldExtractor:
 class OcrService:
     def __init__(self):
         self.tesseract_bin = find_tesseract_binary()
+        self._rapid_ocr = None
         if self.tesseract_bin and HAS_PYTESSERACT:
             pytesseract.pytesseract.tesseract_cmd = self.tesseract_bin
 
-    def extract_invoice_data(self, file_path: str, filename: str) -> Dict[str, Any]:
+    def extract_invoice_data(self, file_path: str, filename: str, default_currency: str = 'USD') -> Dict[str, Any]:
         """
         Production-grade invoice extraction pipeline:
         1. Multi-format support (PDF text extraction, PDF scanned rasterization, Images).
@@ -693,7 +701,7 @@ class OcrService:
             raw_text = ""
 
         # Smart extraction
-        extracted_result = SmartFieldExtractor.parse_invoice_text(raw_text, filename)
+        extracted_result = SmartFieldExtractor.parse_invoice_text(raw_text, filename, default_currency=default_currency)
         fields = extracted_result['fields']
         calculated_conf = extracted_result['confidence_score']
         
@@ -770,7 +778,20 @@ class OcrService:
             except Exception as tess_err:
                 print(f"Tesseract execution error: {tess_err}")
 
-        return "", 80.0
+        if HAS_RAPIDOCR:
+            try:
+                if self._rapid_ocr is None:
+                    self._rapid_ocr = RapidOCR()
+                result, _ = self._rapid_ocr(np.asarray(preprocessed_pil.convert('RGB')))
+                if result:
+                    text_lines = [str(line[1]).strip() for line in result if len(line) > 1 and str(line[1]).strip()]
+                    confidences = [float(line[2]) for line in result if len(line) > 2]
+                    confidence = round(float(np.mean(confidences)) * 100, 1) if confidences else 80.0
+                    return "\n".join(text_lines), confidence
+            except Exception as rapid_ocr_err:
+                print(f"RapidOCR execution error: {rapid_ocr_err}")
+
+        return "", 0.0
 
 
 ocr_service = OcrService()

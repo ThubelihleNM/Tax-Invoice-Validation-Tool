@@ -22,8 +22,7 @@ class SettingsUpdateRequest(BaseModel):
 
 @router.get("")
 def get_settings(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_role)
+    db: Session = Depends(get_db)
 ):
     """Retrieve site settings from database."""
     settings = db.query(SystemSettings).filter(SystemSettings.id == 1).first()

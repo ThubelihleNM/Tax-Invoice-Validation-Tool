@@ -18,6 +18,10 @@ export interface User {
   occupation?: string;
   company_name?: string;
   country?: string;
+  country_code?: string;
+  currency?: string;
+  currency_symbol?: string;
+  tax_system?: string;
   city?: string;
   address?: string;
 }

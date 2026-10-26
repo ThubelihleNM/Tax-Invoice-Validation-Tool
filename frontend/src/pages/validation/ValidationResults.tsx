@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
 import axios from 'axios';
 import { 
   FileText, ShieldCheck, ShieldAlert, ShieldX, ChevronLeft, 
   Download, Edit3, MessageSquare, AlertCircle, CheckCircle, 
-  HelpCircle, Sparkles, Send, Check, X, ClipboardCheck, ArrowRight
+  HelpCircle, Sparkles, Send, Check, X, ClipboardCheck, ArrowRight,
+  Save, RefreshCw
 } from 'lucide-react';
 import { Card, CardHeader, CardContent, CardFooter } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { toast } from '../../components/common/Toast';
 import { Spinner } from '../../components/common/Spinner';
+import { Input } from '../../components/common/Input';
+import { Dropdown } from '../../components/common/Dropdown';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface ValidationResultData {
@@ -46,11 +50,25 @@ interface InvoiceData {
   invoice_id: number;
   invoice_number: string;
   invoice_date?: string;
+  due_date?: string;
   currency: string;
+  subtotal?: number | string;
+  vat_percentage?: number | string;
+  vat_amount?: number | string;
+  discount?: number | string;
   total_amount: number;
+  risk_level?: any;
   file_path?: string;
-  supplier?: { supplier_name: string };
-  customer?: { customer_name: string };
+  supplier?: {
+    supplier_name: string;
+    tax_number?: string;
+    address?: string;
+  };
+  customer?: {
+    customer_name: string;
+    tax_number?: string;
+    address?: string;
+  };
 }
 
 export const ValidationResults: React.FC = () => {
@@ -66,6 +84,8 @@ export const ValidationResults: React.FC = () => {
   const [result, setResult] = useState<ValidationResultData | null>(null);
   
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [downloadingReport, setDownloadingReport] = useState(false);
   const [revalidating, setRevalidating] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [commenting, setCommenting] = useState(false);
@@ -76,8 +96,22 @@ export const ValidationResults: React.FC = () => {
   const [overrideComment, setOverrideComment] = useState('');
   const [overriding, setOverriding] = useState(false);
 
-  // Toggle edit/preview view
-  const [showEditForm, setShowEditForm] = useState(false);
+  const { register, handleSubmit, reset } = useForm();
+
+  const onSubmit = async (formData: any) => {
+    if (!invoiceId) return;
+    setSaving(true);
+    try {
+      await axios.put(`/api/invoices/${invoiceId}`, formData);
+      toast('success', 'Updated', 'Invoice fields updated successfully.');
+      navigate(`/validation?id=${invoiceId}`);
+      fetchData();
+    } catch (err) {
+      toast('danger', 'Update Failed', 'Failed to update invoice fields.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const fetchData = async () => {
     if (!invoiceId) {
@@ -88,6 +122,25 @@ export const ValidationResults: React.FC = () => {
     try {
       const resInv = await axios.get(`/api/invoices/${invoiceId}`);
       setInvoice(resInv.data);
+      reset({
+        supplier_name: resInv.data.supplier?.supplier_name || '',
+        supplier_tax_number: resInv.data.supplier?.tax_number || '',
+        supplier_address: resInv.data.supplier?.address || '',
+        customer_name: resInv.data.customer?.customer_name || '',
+        customer_tax_number: resInv.data.customer?.tax_number || '',
+        customer_address: resInv.data.customer?.address || '',
+        invoice_number: resInv.data.invoice_number || '',
+        invoice_date: resInv.data.invoice_date || '',
+        due_date: resInv.data.due_date || '',
+        currency: resInv.data.currency || 'USD',
+        payment_method: '',
+        reference_number: '',
+        subtotal: resInv.data.subtotal || 0,
+        vat_percentage: resInv.data.vat_percentage || 0,
+        vat_amount: resInv.data.vat_amount || 0,
+        discount: resInv.data.discount || 0,
+        total_amount: resInv.data.total_amount || 0,
+      });
 
       const resVal = await axios.get(`/api/validation/${invoiceId}`);
       setResult(resVal.data);
@@ -154,10 +207,29 @@ export const ValidationResults: React.FC = () => {
     }
   };
 
-  const downloadPDFReport = () => {
+  const downloadPDFReport = async () => {
     if (!invoiceId) return;
-    window.open(`/api/validation/report/${invoiceId}`, '_blank');
-    toast('success', 'PDF Triggered', 'Detailed ReportLab compliance report opened in new tab.');
+    setDownloadingReport(true);
+    try {
+      const response = await axios.get(`/api/validation/report/${invoiceId}`, {
+        responseType: 'blob'
+      });
+      const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
+      const downloadUrl = window.URL.createObjectURL(pdfBlob);
+      const downloadLink = document.createElement('a');
+      const safeInvoiceNumber = (invoice?.invoice_number || invoiceId).replace(/[^a-zA-Z0-9_-]/g, '_');
+      downloadLink.href = downloadUrl;
+      downloadLink.download = `Invoice_Audit_${safeInvoiceNumber}.pdf`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+      window.setTimeout(() => window.URL.revokeObjectURL(downloadUrl), 1000);
+      toast('success', 'Report Downloaded', 'The tax audit PDF report has been downloaded.');
+    } catch (err) {
+      toast('danger', 'Download Failed', 'Could not download the audit report. Run the audit again and retry.');
+    } finally {
+      setDownloadingReport(false);
+    }
   };
 
   // Helper colors mapping
@@ -221,7 +293,7 @@ export const ValidationResults: React.FC = () => {
     { rule: "Rule 6", title: "Subtotal Boundaries Check", passed: !invalidSet.has("subtotal"), desc: "Subtotal amounts must exceed zero." },
     { rule: "Rule 7", title: "VAT Recalculation Check", passed: !invalidSet.has("vat_amount"), desc: "Re-calculated VAT compared with invoice values aligns within tolerance." },
     { rule: "Rule 8", title: "Grand Total Math Balance", passed: !invalidSet.has("total_amount"), desc: "Subtotal - Discount + VAT sums match the invoice total amount." },
-    { rule: "Rule 9", title: "Currency Support Checklist", passed: !invalidSet.has("currency"), desc: "Invoice currency matches standard codes (USD, EUR, GBP, ZAR)." },
+    { rule: "Rule 9", title: "Currency Support Checklist", passed: !invalidSet.has("currency"), desc: "Invoice currency matches standard codes (INR, USD, EUR, GBP, ZAR, CAD, AUD, AED)." },
     { rule: "Rule 10", title: "PO Code References", passed: !missingSet.has("po_number"), desc: "Checks for required corporate Purchase Order referencing." }
   ];
 
@@ -315,7 +387,23 @@ export const ValidationResults: React.FC = () => {
                       <Input label="Due Date" type="date" className={getFieldHighlightStyle(invoice.due_date, 'due_date')} {...register('due_date')} />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <Dropdown label="Currency" options={[{ value: 'USD', label: 'USD' }, { value: 'EUR', label: 'EUR' }, { value: 'GBP', label: 'GBP' }, { value: 'ZAR', label: 'ZAR' }]} {...register('currency')} />
+                      <Dropdown 
+                        label="Currency" 
+                        options={[
+                          { value: 'INR', label: 'INR - Indian Rupee (₹)' },
+                          { value: 'USD', label: 'USD - US Dollar ($)' },
+                          { value: 'EUR', label: 'EUR - Euro (€)' },
+                          { value: 'GBP', label: 'GBP - British Pound (£)' },
+                          { value: 'ZAR', label: 'ZAR - South African Rand (R)' },
+                          { value: 'CAD', label: 'CAD - Canadian Dollar ($)' },
+                          { value: 'AUD', label: 'AUD - Australian Dollar ($)' },
+                          { value: 'AED', label: 'AED - UAE Dirham' },
+                          { value: 'NGN', label: 'NGN - Nigerian Naira (₦)' },
+                          { value: 'KES', label: 'KES - Kenyan Shilling (KSh)' },
+                          { value: 'ZWG', label: 'ZWG - Zimbabwe Gold (ZiG)' }
+                        ]} 
+                        {...register('currency')} 
+                      />
                       <Input label="Payment Method" className={getFieldHighlightStyle(result.fraud_flags?.duplicate_invoice, 'payment_method')} {...register('payment_method')} />
                       <Input label="Reference Number" className={getFieldHighlightStyle(result.fraud_flags?.duplicate_invoice, 'reference_number')} {...register('reference_number')} />
                     </div>
@@ -382,7 +470,7 @@ export const ValidationResults: React.FC = () => {
               <span>Correct OCR Fields</span>
             </Button>
           )}
-          <Button variant="outline" size="sm" className="text-xs flex items-center gap-1.5" onClick={downloadPDFReport}>
+          <Button variant="outline" size="sm" className="text-xs flex items-center gap-1.5" onClick={downloadPDFReport} isLoading={downloadingReport}>
             <Download size={14} />
             <span>Download PDF Report</span>
           </Button>
@@ -466,7 +554,7 @@ export const ValidationResults: React.FC = () => {
                 </div>
               </div>
               <div className={`mt-4 px-3 py-1 rounded-full text-xs font-bold border ${getRiskBg(riskVal)}`}>
-                {invoice.total_amount > 10000 && riskVal <= 20 ? 'LOW RISK (High Amount)' : invoice.risk_level.value.toUpperCase()} RISK
+                {invoice.total_amount > 10000 && riskVal <= 20 ? 'LOW RISK (High Amount)' : (typeof invoice.risk_level === 'object' && invoice.risk_level !== null ? invoice.risk_level.value : String(invoice.risk_level || 'MEDIUM')).toUpperCase()} RISK
               </div>
             </Card>
 

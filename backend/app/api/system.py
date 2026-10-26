@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.database.connection import get_db, engine
 from app.authentication.jwt import require_admin
@@ -49,7 +50,7 @@ def get_system_health(
     db_ms = 0.0
     try:
         start = time.time()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db_ms = round((time.time() - start) * 1000, 2)
         db_ok = True
     except Exception:

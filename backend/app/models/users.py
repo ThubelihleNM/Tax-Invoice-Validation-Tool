@@ -77,7 +77,7 @@ class User(Base):
     # Relationships
     company = relationship("Company", back_populates="members", foreign_keys=[company_id])
     uploaded_invoices = relationship("Invoice", back_populates="uploader")
-    audit_logs = relationship("AuditLog", back_populates="user")
+    audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user")
     generated_reports = relationship("Report", back_populates="creator")
     reset_tokens = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")
@@ -95,7 +95,30 @@ class User(Base):
             "AED": "AED",
             "NGN": "₦",
             "KES": "KSh",
-            "ZWG": "ZiG"
+            "ZWG": "ZiG",
+            "JPY": "¥",
+            "SGD": "$",
+            "CHF": "CHF"
         }
-        return symbol_map.get(self.currency, "$") if self.currency else "$"
+        if self.currency and self.currency.upper() in symbol_map:
+            return symbol_map[self.currency.upper()]
+        
+        country_symbol_map = {
+            "india": "₹",
+            "in": "₹",
+            "south africa": "R",
+            "za": "R",
+            "united kingdom": "£",
+            "uk": "£",
+            "gb": "£",
+            "nigeria": "₦",
+            "kenya": "KSh",
+            "zimbabwe": "ZiG",
+            "united arab emirates": "AED",
+            "uae": "AED"
+        }
+        if self.country and self.country.strip().lower() in country_symbol_map:
+            return country_symbol_map[self.country.strip().lower()]
+
+        return "$"
 

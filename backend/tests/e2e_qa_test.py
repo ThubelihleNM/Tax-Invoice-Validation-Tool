@@ -148,6 +148,7 @@ def run_qa_verification():
         print(f"[PASS] Password recovery requested, reset token generated")
 
         # Verify token in DB is hashed and not plaintext
+        db.rollback()
         token_entry = db.query(PasswordResetToken).filter(PasswordResetToken.user_id == user_in_db.id).order_by(PasswordResetToken.id.desc()).first()
         assert token_entry is not None
         assert token_entry.token_hash != reset_token, "Token stored in plaintext in DB!"
@@ -203,6 +204,7 @@ def run_qa_verification():
         print("[PASS] Business account registered with 201 Created")
 
         # Verify Database records for Company and Owner
+        db.rollback()
         comp_user = db.query(User).filter(User.email == company_email).first()
         assert comp_user is not None
         assert comp_user.account_type == AccountType.COMPANY

@@ -14,6 +14,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from '../../components/common/Toast';
+import { formatCurrency, getCurrencyInfo } from '../../utils/currency';
 
 interface SummaryData {
   total_invoices: number;
@@ -33,6 +34,8 @@ export const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [chartData, setChartData] = useState<any[]>([]);
   const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
+
+  const currencyInfo = getCurrencyInfo(user);
 
   const fetchSummary = async () => {
     setIsLoading(true);
@@ -71,6 +74,7 @@ export const Dashboard: React.FC = () => {
         supplier: inv.supplier?.supplier_name || 'Unknown',
         date: inv.invoice_date || new Date(inv.created_at).toLocaleDateString(),
         total: Number(inv.total_amount),
+        currency: inv.currency || user?.currency || currencyInfo.code,
         status: inv.invoice_status,
         risk: inv.risk_level
       }));
@@ -91,6 +95,20 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchSummary();
+
+    let lastRefreshAt = Date.now();
+    const refreshWhenActive = () => {
+      if (document.visibilityState === 'hidden' || Date.now() - lastRefreshAt < 1500) return;
+      lastRefreshAt = Date.now();
+      fetchSummary();
+    };
+
+    window.addEventListener('focus', refreshWhenActive);
+    document.addEventListener('visibilitychange', refreshWhenActive);
+    return () => {
+      window.removeEventListener('focus', refreshWhenActive);
+      document.removeEventListener('visibilitychange', refreshWhenActive);
+    };
   }, []);
 
   const pieData = [
@@ -106,9 +124,15 @@ export const Dashboard: React.FC = () => {
         {/* Welcome Banner */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">
-              Welcome, {user?.first_name || 'User'}
-            </h1>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">
+                Welcome, {user?.first_name || 'User'}
+              </h1>
+              <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <span>{user?.country || 'Region'}:</span>
+                <span className="font-bold">{currencyInfo.name} ({currencyInfo.code} {currencyInfo.symbol})</span>
+              </span>
+            </div>
             <p className="text-sm text-slate-500 dark:text-slate-400">
               Here is your personal expense and invoice validation overview.
             </p>
@@ -148,7 +172,7 @@ export const Dashboard: React.FC = () => {
           <Card className="p-5 flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Monthly Expenses</p>
-              <h3 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100">${summary?.monthly_invoice_value?.toFixed(2) || '0.00'}</h3>
+              <h3 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100">{formatCurrency(summary?.monthly_invoice_value, user)}</h3>
             </div>
             <div className="h-10 w-10 bg-success/10 text-success border border-success/20 rounded-xl flex items-center justify-center">
               <TrendingUp size={20} />
@@ -158,7 +182,7 @@ export const Dashboard: React.FC = () => {
           <Card className="p-5 flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">VAT Paid</p>
-              <h3 className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">${summary?.vat_collected?.toFixed(2) || '0.00'}</h3>
+              <h3 className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">{formatCurrency(summary?.vat_collected, user)}</h3>
             </div>
             <div className="h-10 w-10 bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 rounded-xl flex items-center justify-center">
               <ShieldCheck size={20} />
@@ -258,7 +282,7 @@ export const Dashboard: React.FC = () => {
                     >
                       <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200">{inv.id}</td>
                       <td className="px-4 py-3">{inv.supplier}</td>
-                      <td className="px-4 py-3 font-bold">${inv.total.toFixed(2)}</td>
+                      <td className="px-4 py-3 font-bold">{formatCurrency(inv.total, inv.currency || user)}</td>
                       <td className="px-4 py-3">
                         <Badge variant={inv.status === 'Validated' ? 'success' : inv.status === 'Flagged' ? 'warning' : 'danger'}>
                           {inv.status}
@@ -287,9 +311,15 @@ export const Dashboard: React.FC = () => {
       {/* Welcome Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">
-            Welcome, {user?.first_name || 'User'}
-          </h1>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">
+              Welcome, {user?.first_name || 'User'}
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <span>{user?.country || 'Region'}:</span>
+              <span className="font-bold">{currencyInfo.name} ({currencyInfo.code} {currencyInfo.symbol})</span>
+            </span>
+          </div>
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Here is the audit compliance summary for your organization.
           </p>
@@ -446,7 +476,7 @@ export const Dashboard: React.FC = () => {
                   <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{inv.id}</td>
                   <td className="px-6 py-4 font-semibold">{inv.supplier}</td>
                   <td className="px-6 py-4">{inv.date}</td>
-                  <td className="px-6 py-4 font-bold">${inv.total.toFixed(2)}</td>
+                  <td className="px-6 py-4 font-bold">{formatCurrency(inv.total, inv.currency || user)}</td>
                   <td className="px-6 py-4">
                     <Badge variant={inv.status === 'Validated' ? 'success' : inv.status === 'Flagged' ? 'warning' : 'danger'}>
                       {inv.status}

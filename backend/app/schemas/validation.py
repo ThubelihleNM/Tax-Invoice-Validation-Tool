@@ -29,6 +29,13 @@ class ValidationResultResponse(ValidationResultBase):
     validation_id: int
     invoice_id: int
     validated_at: datetime
+    risk_score: Optional[Decimal] = None
+    validation_score: Optional[Decimal] = None
+    ai_explanation: Optional[str] = None
+    ai_recommendations: Optional[List[str]] = None
+    fraud_flags: Optional[Dict[str, Any]] = None
+    comments_json: Optional[List[Any]] = None
+    generated_report_path: Optional[str] = None
 
     class Config:
         from_attributes = True

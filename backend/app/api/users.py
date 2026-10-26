@@ -80,7 +80,7 @@ def create_user(
     """Create a user account (Admin only)."""
     return user_service.create_user(db, admin_user.id, data)
 
-@router.put("/{id}", response_model=UserResponse)
+@router.put("/{id:int}", response_model=UserResponse)
 def update_user(
     id: int,
     data: UserUpdate,
@@ -145,43 +145,79 @@ def update_profile(
 ):
     """Allow active user to update their own name/phone number/preferences."""
     resolved_currency = data.currency
-    if not resolved_currency and data.country and data.country.strip():
+    resolved_country_code = data.country_code
+    resolved_tax_system = data.tax_system
+
+    COUNTRY_FALLBACKS = {
+        "india": ("INR", "IN", "GST"),
+        "in": ("INR", "IN", "GST"),
+        "south africa": ("ZAR", "ZA", "VAT"),
+        "za": ("ZAR", "ZA", "VAT"),
+        "united states": ("USD", "US", "Sales Tax"),
+        "usa": ("USD", "US", "Sales Tax"),
+        "us": ("USD", "US", "Sales Tax"),
+        "united kingdom": ("GBP", "GB", "VAT"),
+        "uk": ("GBP", "GB", "VAT"),
+        "gb": ("GBP", "GB", "VAT"),
+        "canada": ("CAD", "CA", "GST"),
+        "ca": ("CAD", "CA", "GST"),
+        "australia": ("AUD", "AU", "GST"),
+        "au": ("AUD", "AU", "GST"),
+        "united arab emirates": ("AED", "AE", "VAT"),
+        "uae": ("AED", "AE", "VAT"),
+        "ae": ("AED", "AE", "VAT"),
+        "nigeria": ("NGN", "NG", "VAT"),
+        "ng": ("NGN", "NG", "VAT"),
+        "kenya": ("KES", "KE", "VAT"),
+        "ke": ("KES", "KE", "VAT"),
+        "zimbabwe": ("ZWG", "ZW", "VAT"),
+        "zw": ("ZWG", "ZW", "VAT"),
+        "germany": ("EUR", "DE", "VAT"),
+        "france": ("EUR", "FR", "VAT"),
+    }
+
+    if data.country and data.country.strip():
         from app.models.countries import Country
         clean_country = data.country.strip()
         c_obj = db.query(Country).filter(
             (Country.name.ilike(clean_country)) | (Country.code.ilike(clean_country))
         ).first()
-        if c_obj and c_obj.tax_config and c_obj.tax_config.currency:
-            resolved_currency = c_obj.tax_config.currency.code
+        if c_obj:
+            if c_obj.tax_config and c_obj.tax_config.currency:
+                resolved_currency = c_obj.tax_config.currency.code
+            resolved_country_code = c_obj.code
+            if c_obj.tax_config and c_obj.tax_config.tax_system:
+                resolved_tax_system = c_obj.tax_config.tax_system.code
+        elif clean_country.lower() in COUNTRY_FALLBACKS:
+            curr, c_code, t_sys = COUNTRY_FALLBACKS[clean_country.lower()]
+            resolved_currency = curr
+            if not resolved_country_code:
+                resolved_country_code = c_code
+            if not resolved_tax_system:
+                resolved_tax_system = t_sys
 
-    user_in = UserUpdate(
-        first_name=data.first_name,
-        last_name=data.last_name,
-        phone=data.phone,
-        company_name=data.company_name,
-        job_title=data.job_title,
-        country=data.country,
-        city=data.city,
-        address=data.address,
-        postal_code=data.postal_code,
-        tax_id=data.tax_id,
-        currency=resolved_currency,
-        bio=data.bio,
-        theme_preference=data.theme_preference,
-        language_preference=data.language_preference,
-        timezone=data.timezone,
-        email_notifications=data.email_notifications,
-        system_notifications=data.system_notifications,
-        fraud_alerts=data.fraud_alerts,
-        validation_alerts=data.validation_alerts,
-        report_notifications=data.report_notifications,
-        business_registration_number=data.business_registration_number,
-        tax_number=data.tax_number,
-        tax_system=data.tax_system,
-        occupation=data.occupation,
-        profession=data.profession,
-        country_code=data.country_code
-    )
+    profile_update = data.model_dump(exclude_unset=True)
+    if data.country is not None:
+        profile_update["country_code"] = resolved_country_code
+        profile_update["tax_system"] = resolved_tax_system
+    if data.country is not None or data.currency is not None:
+        profile_update["currency"] = resolved_currency
+
+    user_in = UserUpdate(**profile_update)
+
+    # If linked to a company, synchronize company's country and currency as well
+    if current_user.company_id and (data.country or resolved_currency):
+        from app.models.companies import Company
+        comp = db.query(Company).filter(Company.id == current_user.company_id).first()
+        if comp:
+            if data.country:
+                comp.country = data.country
+            if resolved_currency:
+                comp.currency = resolved_currency
+            if resolved_tax_system:
+                comp.tax_system = resolved_tax_system
+            db.commit()
+
     return user_service.update_user(db, current_user.id, current_user.id, user_in)
 
 @router.post("/profile/photo", response_model=UserResponse)

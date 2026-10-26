@@ -88,9 +88,9 @@ export const Upload: React.FC = () => {
 
   const validateAndSetFile = (file: File) => {
     // Check type
-    const ext = file.name.substring(file.name.lastIndexOf('.')).lowerCase || '';
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
     const allowed = ['.pdf', '.png', '.jpg', '.jpeg'];
-    const hasAllowedExt = allowed.some(a => file.name.toLowerCase().endsWith(a));
+    const hasAllowedExt = allowed.includes(ext);
 
     if (!hasAllowedExt) {
       toast('danger', 'Invalid File Type', 'Only PDF, PNG, JPG, and JPEG files are supported.');

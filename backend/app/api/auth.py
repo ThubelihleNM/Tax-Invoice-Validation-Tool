@@ -237,7 +237,39 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
             currency_code = country_obj.tax_config.currency.code
     else:
         # Default fallback if country not found in registry
-        determined_tax_system = data.tax_system or "VAT"
+        clean_c = (data.country or data.country_code or "").strip().lower()
+        COUNTRY_FALLBACKS = {
+            "india": ("INR", "IN", "GST"),
+            "in": ("INR", "IN", "GST"),
+            "south africa": ("ZAR", "ZA", "VAT"),
+            "za": ("ZAR", "ZA", "VAT"),
+            "united states": ("USD", "US", "Sales Tax"),
+            "usa": ("USD", "US", "Sales Tax"),
+            "us": ("USD", "US", "Sales Tax"),
+            "united kingdom": ("GBP", "GB", "VAT"),
+            "uk": ("GBP", "GB", "VAT"),
+            "gb": ("GBP", "GB", "VAT"),
+            "canada": ("CAD", "CA", "GST"),
+            "ca": ("CAD", "CA", "GST"),
+            "australia": ("AUD", "AU", "GST"),
+            "au": ("AUD", "AU", "GST"),
+            "united arab emirates": ("AED", "AE", "VAT"),
+            "uae": ("AED", "AE", "VAT"),
+            "ae": ("AED", "AE", "VAT"),
+            "nigeria": ("NGN", "NG", "VAT"),
+            "ng": ("NGN", "NG", "VAT"),
+            "kenya": ("KES", "KE", "VAT"),
+            "ke": ("KES", "KE", "VAT"),
+            "zimbabwe": ("ZWG", "ZW", "VAT"),
+            "zw": ("ZWG", "ZW", "VAT"),
+        }
+        if clean_c in COUNTRY_FALLBACKS:
+            curr, c_code, t_sys = COUNTRY_FALLBACKS[clean_c]
+            currency_code = curr
+            determined_country_code = c_code
+            determined_tax_system = t_sys
+        else:
+            determined_tax_system = data.tax_system or "VAT"
 
     # 6. Secure Password Hashing (Argon2 / bcrypt)
     hashed_password = get_password_hash(data.password)

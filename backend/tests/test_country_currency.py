@@ -45,6 +45,7 @@ def test_country_currency_assignment():
             token = res.json()["access_token"]
 
             # Verify in DB
+            db.rollback()
             user = db.query(User).filter(User.email == email).first()
             assert user is not None
             assert user.currency == item["expected_currency"], f"DB currency mismatch for {item['country']}: got {user.currency}, expected {item['expected_currency']}"

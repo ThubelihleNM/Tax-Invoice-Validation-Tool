@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { toast } from '../../components/common/Toast';
-import { ChevronLeft, ShieldAlert } from 'lucide-react';
+import { ChevronLeft, ShieldAlert, Home } from 'lucide-react';
+
 
 interface ForgotPasswordInputs {
   email: string;
@@ -38,14 +39,24 @@ export const ForgotPassword: React.FC = () => {
     <div className="col-span-1 md:col-span-12 flex flex-col justify-center items-center p-8 bg-white dark:bg-slate-900 transition-colors duration-200 min-h-[600px]">
       <div className="max-w-md w-full space-y-6">
         
-        {/* Back navigation button */}
-        <button
-          onClick={() => navigate('/login')}
-          className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors font-medium"
-        >
-          <ChevronLeft size={16} />
-          <span>Back to Login</span>
-        </button>
+        {/* Navigation row: Back to Login + Home */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => navigate('/login')}
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors font-medium"
+          >
+            <ChevronLeft size={16} />
+            <span>Back to Login</span>
+          </button>
+          <Link
+            to="/"
+            id="forgot-password-home-btn"
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-primary dark:hover:text-primary bg-slate-100 dark:bg-slate-800 hover:bg-primary/10 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-full transition-all duration-200 font-medium"
+          >
+            <Home size={13} />
+            <span>Home</span>
+          </Link>
+        </div>
 
         <div className="space-y-2">
           <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100 font-sans">Forgot Password</h3>
@@ -63,8 +74,7 @@ export const ForgotPassword: React.FC = () => {
             {...register('email', {
               required: 'Email address is required',
               pattern: {
-                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, // simple fix regex
+                value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
                 message: 'Please enter a valid email'
               }
             })}

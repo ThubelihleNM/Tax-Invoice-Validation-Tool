@@ -26,7 +26,7 @@ interface CompanyDetails {
 }
 
 interface TaxConfig {
-  supported_rates: string;  # "15, 20, 0"
+  supported_rates: string; // "15, 20, 0"
   precision: number;
   decimal_places: number;
   auto_validation: boolean;
@@ -351,10 +351,17 @@ export const SystemSettings: React.FC = () => {
                     onChange={(e) => setBasic(prev => ({ ...prev, currency: e.target.value }))}
                     disabled={!isAdmin}
                     options={[
-                      { value: 'USD', label: 'USD - United States Dollar' },
-                      { value: 'EUR', label: 'EUR - Euro' },
-                      { value: 'GBP', label: 'GBP - British Pound' },
-                      { value: 'ZAR', label: 'ZAR - South African Rand' }
+                      { value: 'INR', label: 'INR - Indian Rupee (₹)' },
+                      { value: 'USD', label: 'USD - United States Dollar ($)' },
+                      { value: 'EUR', label: 'EUR - Euro (€)' },
+                      { value: 'GBP', label: 'GBP - British Pound (£)' },
+                      { value: 'ZAR', label: 'ZAR - South African Rand (R)' },
+                      { value: 'CAD', label: 'CAD - Canadian Dollar ($)' },
+                      { value: 'AUD', label: 'AUD - Australian Dollar ($)' },
+                      { value: 'AED', label: 'AED - UAE Dirham' },
+                      { value: 'NGN', label: 'NGN - Nigerian Naira (₦)' },
+                      { value: 'KES', label: 'KES - Kenyan Shilling (KSh)' },
+                      { value: 'ZWG', label: 'ZWG - Zimbabwe Gold (ZiG)' }
                     ]}
                   />
                   <Dropdown

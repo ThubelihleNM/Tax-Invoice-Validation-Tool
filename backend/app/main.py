@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -103,11 +103,19 @@ def upgrade_db_schema():
 # Database startup seeding
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables
-    Base.metadata.create_all(bind=engine)
+    # Create tables — wrapped so server still starts if DB has a transient error
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"[STARTUP WARNING] Could not create/verify database tables: {e}")
+        print("[STARTUP WARNING] The server will start but database operations may fail.")
+        print("[STARTUP WARNING] Check DATABASE_URL in your .env file.")
     
     # Run dynamic schema migrations/updates
-    upgrade_db_schema()
+    try:
+        upgrade_db_schema()
+    except Exception as e:
+        print(f"[STARTUP WARNING] Schema upgrade skipped: {e}")
     
     # Seed default users & tax configurations
     db = SessionLocal()
@@ -122,7 +130,7 @@ async def lifespan(app: FastAPI):
         # "Remove all sample/demo users. Remove all fake invoices. Remove fake dashboard statistics."
         # Wait, the lifespan seeds system roles / default admin/accountant.
         # Requirement 47: "Create only the minimum necessary system configuration data: Countries, Currencies, Tax systems, Tax rates, System roles. Do NOT create fake user invoices. Do NOT create fake company records. Do NOT create fake dashboard activity."
-        # So we can keep minimum default admin roles for configuration if necessary, or just not seed default invoices/companies.
+        # So we can keep minimum default admin roles for configuration if necessary, but remove any mock invoices/activity.
         # Let's keep the default admin/accountant users as system roles for the year project demo if needed, but remove any mock invoices/activity.
         # Let's verify:
         users_seed = [
@@ -197,7 +205,7 @@ async def lifespan(app: FastAPI):
             db.add(new_settings)
             db.commit()
     except Exception as e:
-        print(f"Error seeding database: {e}")
+        print(f"[STARTUP WARNING] Seeding skipped or partially failed: {e}")
     finally:
         db.close()
         
@@ -218,29 +226,36 @@ app.add_middleware(
 )
 
 # Exception handlers
-@app.exception_handler(HTTPException := Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    status_code = getattr(exc, "status_code", 500)
-    detail = getattr(exc, "detail", "Internal server error occurred")
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(
-        status_code=status_code,
-        content={"detail": detail}
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
     )
 
-# Include routers
-app.include_router(auth.router, prefix=settings.API_V1_STR)
-app.include_router(users.router, prefix=settings.API_V1_STR)
-app.include_router(audit.router, prefix=settings.API_V1_STR)
-app.include_router(invoices.router, prefix=settings.API_V1_STR)
-app.include_router(validation.router, prefix=settings.API_V1_STR)
-app.include_router(reports.router, prefix=settings.API_V1_STR)
-app.include_router(analytics.router, prefix=settings.API_V1_STR)
-app.include_router(api_settings.router, prefix=settings.API_V1_STR)
-app.include_router(system.router, prefix=settings.API_V1_STR)
-app.include_router(ai.router, prefix=settings.API_V1_STR)
-app.include_router(companies.router, prefix=settings.API_V1_STR)
-app.include_router(countries.router, prefix=settings.API_V1_STR)
-app.include_router(notifications.router, prefix=settings.API_V1_STR)
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error occurred"}
+    )
+
+# Include routers for both /api and /api/v1 prefixes
+for prefix in ["/api", "/api/v1"]:
+    app.include_router(auth.router, prefix=prefix)
+    app.include_router(users.router, prefix=prefix)
+    app.include_router(audit.router, prefix=prefix)
+    app.include_router(invoices.router, prefix=prefix)
+    app.include_router(validation.router, prefix=prefix)
+    app.include_router(reports.router, prefix=prefix)
+    app.include_router(analytics.router, prefix=prefix)
+    app.include_router(api_settings.router, prefix=prefix)
+    app.include_router(system.router, prefix=prefix)
+    app.include_router(ai.router, prefix=prefix)
+    app.include_router(companies.router, prefix=prefix)
+    app.include_router(countries.router, prefix=prefix)
+    app.include_router(notifications.router, prefix=prefix)
+
 
 # Serve uploaded profile photos dynamically
 os.makedirs(os.path.join(settings.UPLOAD_DIR, "profiles"), exist_ok=True)

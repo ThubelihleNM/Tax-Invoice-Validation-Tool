@@ -186,9 +186,13 @@ async def upload_invoice(
     db.add(notif)
     db.commit()
 
+    user_default_currency = current_user.currency or "USD"
+    if current_user.country and current_user.country.strip().lower() in ["india", "in"]:
+        user_default_currency = "INR"
+
     # 4. Trigger OCR Extraction
     try:
-        ocr_result = ocr_service.extract_invoice_data(file_dest_path, file.filename)
+        ocr_result = ocr_service.extract_invoice_data(file_dest_path, file.filename, default_currency=user_default_currency)
     except Exception as ocr_fail:
         # Update logs on fail
         audit_repository.create(
@@ -259,7 +263,7 @@ async def upload_invoice(
         customer_id=customer.customer_id,
         invoice_date=inv_date,
         due_date=due_date,
-        currency=fields.get("currency", "USD"),
+        currency=fields.get("currency") or user_default_currency,
         subtotal=decimal.Decimal(str(fields.get("subtotal", 0.00))),
         vat_percentage=decimal.Decimal(str(fields.get("vat_percentage", 0.00))),
         vat_amount=decimal.Decimal(str(fields.get("vat_amount", 0.00))),

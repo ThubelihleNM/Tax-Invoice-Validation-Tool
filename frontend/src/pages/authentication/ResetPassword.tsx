@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { toast } from '../../components/common/Toast';
-import { Check, X, ShieldAlert, Key } from 'lucide-react';
+import { Check, X, ShieldAlert, Key, Home, ChevronLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
+
 
 interface ResetPasswordInputs {
   new_password: string;
@@ -83,7 +84,26 @@ export const ResetPassword: React.FC = () => {
   return (
     <div className="col-span-1 md:col-span-12 flex flex-col justify-center items-center p-8 bg-white dark:bg-slate-900 transition-colors duration-200 min-h-[600px]">
       <div className="max-w-md w-full space-y-6">
-        
+
+        {/* Navigation row: Back to Login + Home */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => navigate('/login')}
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors font-medium"
+          >
+            <ChevronLeft size={16} />
+            <span>Back to Login</span>
+          </button>
+          <Link
+            to="/"
+            id="reset-password-home-btn"
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-primary dark:hover:text-primary bg-slate-100 dark:bg-slate-800 hover:bg-primary/10 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-full transition-all duration-200 font-medium"
+          >
+            <Home size={13} />
+            <span>Home</span>
+          </Link>
+        </div>
+
         <div className="space-y-2 text-center">
           <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
             <Key size={22} />

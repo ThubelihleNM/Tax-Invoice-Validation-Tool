@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../components/common/Button';
+import { getCurrencyInfo } from '../utils/currency';
 
 export const DashboardLayout: React.FC = () => {
   const { user, loading, logout, showSessionWarning, extendSession } = useAuth();
@@ -19,6 +20,7 @@ export const DashboardLayout: React.FC = () => {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const navigate = useNavigate();
+  const currencyInfo = getCurrencyInfo(user);
 
   // Session Warning Countdown timer
   useEffect(() => {
@@ -223,7 +225,11 @@ export const DashboardLayout: React.FC = () => {
           {!sidebarCollapsed && (
             <div className="flex-grow min-w-0">
               <p className="text-xs font-semibold text-white truncate">{user.first_name} {user.last_name}</p>
-              <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
+              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 truncate">
+                <span>{user.country || 'Global'}</span>
+                <span>•</span>
+                <span className="text-emerald-400 font-bold">{currencyInfo.code} ({currencyInfo.symbol})</span>
+              </div>
             </div>
           )}
         </div>
@@ -306,8 +312,15 @@ export const DashboardLayout: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             
+            {/* Country & Currency Badge */}
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 rounded-full text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <span className="text-slate-400">{user.country || 'Region'}:</span>
+              <span className="text-primary font-bold">{currencyInfo.code}</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold">{currencyInfo.symbol}</span>
+            </div>
+
             {/* Dark Mode toggle */}
             <button
               onClick={toggleTheme}
@@ -389,6 +402,13 @@ export const DashboardLayout: React.FC = () => {
                       <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/10">
                         <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{user.first_name} {user.last_name}</p>
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-primary mt-0.5 block">{user.role}</span>
+                        {user.country && (
+                          <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">{user.country}</span>
+                            <span>•</span>
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400">{currencyInfo.name} ({currencyInfo.code} {currencyInfo.symbol})</span>
+                          </div>
+                        )}
                       </div>
                       <div className="p-1">
                         <button

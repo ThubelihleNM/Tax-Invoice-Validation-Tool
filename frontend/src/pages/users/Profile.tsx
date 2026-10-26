@@ -7,13 +7,15 @@ import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { Card, CardHeader, CardContent, CardFooter } from '../../components/common/Card';
 import { toast } from '../../components/common/Toast';
-import { User as UserIcon, Lock, Camera, ShieldCheck, Mail, Phone, Calendar, Bookmark } from 'lucide-react';
+import { User as UserIcon, Lock, Camera, ShieldCheck, Mail, Phone, Calendar, Bookmark, Globe, Coins } from 'lucide-react';
+import { getCurrencyInfo } from '../../utils/currency';
 
 interface ProfileDetailsInputs {
   first_name: string;
   last_name: string;
   phone: string;
   country?: string;
+  currency?: string;
   occupation?: string;
   company_name?: string;
   business_registration_number?: string;
@@ -54,9 +56,11 @@ export const Profile: React.FC = () => {
   };
 
   // Forms setup
-  const { register: regProfile, handleSubmit: handleProfileSubmit, reset: resetProfile, formState: { errors: errorsProfile } } = useForm<ProfileDetailsInputs>();
+  const { register: regProfile, handleSubmit: handleProfileSubmit, reset: resetProfile, watch: watchProfile, formState: { errors: errorsProfile } } = useForm<ProfileDetailsInputs>();
   const { register: regPass, handleSubmit: handlePassSubmit, reset: resetPass, watch: watchPass, formState: { errors: errorsPass } } = useForm<ChangePasswordInputs>();
   const newPw = watchPass('new_pw');
+  const watchedCountry = watchProfile('country');
+  const selectedCurrency = getCurrencyInfo(watchedCountry || user?.country || user?.currency);
 
   // Initialize form details when user is loaded
   useEffect(() => {
@@ -129,9 +133,13 @@ export const Profile: React.FC = () => {
   const onProfileSubmit = async (data: ProfileDetailsInputs) => {
     setUpdatingProfile(true);
     try {
-      const res = await axios.put('/api/users/profile', data);
+      const payload = {
+        ...data,
+        currency: selectedCurrency.code
+      };
+      const res = await axios.put('/api/users/profile', payload);
       updateUser(res.data);
-      toast('success', 'Profile Updated', 'Your profile information has been saved.');
+      toast('success', 'Profile Updated', `Your profile information has been saved with ${selectedCurrency.name} (${selectedCurrency.code} ${selectedCurrency.symbol}).`);
     } catch (err: any) {
       toast('danger', 'Error', err.response?.data?.detail || 'Failed to update profile.');
     } finally {
@@ -160,8 +168,6 @@ export const Profile: React.FC = () => {
       setChangingPassword(false);
     }
   };
-
-  const newPw = watchPass('new_pw', '');
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -228,6 +234,18 @@ export const Profile: React.FC = () => {
                 <div className="flex items-center gap-2 text-slate-500">
                   <Calendar size={16} />
                   <span className="text-slate-655 text-slate-600 dark:text-slate-400 font-medium">Joined {new Date(user.created_at).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-500">
+                  <Globe size={16} />
+                  <span className="text-slate-655 text-slate-600 dark:text-slate-400 font-medium">Country: 
+                    <span className="ml-1 font-semibold text-slate-800 dark:text-slate-200">{user.country || 'Not specified'}</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-500">
+                  <Coins size={16} />
+                  <span className="text-slate-655 text-slate-600 dark:text-slate-400 font-medium">Currency: 
+                    <span className="ml-1 font-bold text-emerald-600 dark:text-emerald-400">{getCurrencyInfo(user).name} ({getCurrencyInfo(user).code} - {getCurrencyInfo(user).symbol})</span>
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-slate-500">
                   <Bookmark size={16} />
@@ -299,11 +317,35 @@ export const Profile: React.FC = () => {
                         }
                       })}
                     />
-                    <Input
-                      label="Country"
-                      error={errorsProfile.country?.message}
-                      {...regProfile('country')}
-                    />
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Country / Tax Jurisdiction
+                      </label>
+                      <select
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                        {...regProfile('country')}
+                      >
+                        <option value="">Select country...</option>
+                        <option value="India">India — Indian Rupee (INR ₹)</option>
+                        <option value="South Africa">South Africa — South African Rand (ZAR R)</option>
+                        <option value="United States">United States — US Dollar (USD $)</option>
+                        <option value="United Kingdom">United Kingdom — British Pound (GBP £)</option>
+                        <option value="Canada">Canada — Canadian Dollar (CAD $)</option>
+                        <option value="Australia">Australia — Australian Dollar (AUD $)</option>
+                        <option value="United Arab Emirates">United Arab Emirates — UAE Dirham (AED)</option>
+                        <option value="Nigeria">Nigeria — Nigerian Naira (NGN ₦)</option>
+                        <option value="Kenya">Kenya — Kenyan Shilling (KES KSh)</option>
+                        <option value="Zimbabwe">Zimbabwe — Zimbabwe Gold (ZWG ZiG)</option>
+                        <option value="Germany">Germany — Euro (EUR €)</option>
+                        <option value="France">France — Euro (EUR €)</option>
+                      </select>
+                      <div className="mt-1.5 flex items-center justify-between px-1 text-[11px]">
+                        <span className="text-slate-400">Assigned Currency:</span>
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                          {selectedCurrency.name} ({selectedCurrency.code} - {selectedCurrency.symbol})
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
                   {user.account_type === 'PERSONAL' ? (
