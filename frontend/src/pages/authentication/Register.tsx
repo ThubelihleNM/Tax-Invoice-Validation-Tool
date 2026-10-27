@@ -55,7 +55,7 @@ export const Register: React.FC = () => {
     setCountriesLoading(true);
     setCountryLoadError(false);
 
-    fetch('/api/v1/countries')
+    fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/countries`)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch country profiles');
         return res.json();
