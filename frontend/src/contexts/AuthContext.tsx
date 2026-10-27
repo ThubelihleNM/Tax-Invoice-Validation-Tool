@@ -42,7 +42,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Set default axios base configuration
-axios.defaults.baseURL = window.location.origin;
+axios.defaults.baseURL =
+  import.meta.env.VITE_API_BASE_URL || window.location.origin;
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
