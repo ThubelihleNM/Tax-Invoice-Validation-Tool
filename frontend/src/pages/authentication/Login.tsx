@@ -272,7 +272,7 @@ export const Login: React.FC = () => {
                   type="submit"
                   className="w-full py-2.5 shadow-lg shadow-primary/10"
                   isLoading={isLoginLoading}
-                  disabled={!isLoginValid}
+                  disabled={isLoginLoading}
                 >
                   Sign In
                 </Button>
